@@ -112,7 +112,7 @@ class MainActivity : AppCompatActivity() {
         TexturePack("GOKU BLACK", "3 GOKU BLACK", R.drawable.thumb_goku_black),
         TexturePack("SUPER SAYAJIN 3", "4 GOKU SUPER SAYAJIN 3", R.drawable.thumb_ssj3),
         TexturePack("LUFFY", "5 LUFFY", R.drawable.thumb_luffy),
-        TexturePack("LUFFY GEAR 6", "6 LUFFY GEAR SIX", R.drawable.thumb_luffy_gear6),
+        TexturePack("LUFFY GEAR 5", "6 LUFFY GEAR SIX", R.drawable.thumb_luffy_gear6),
         TexturePack("PANTERA COR DE ROSA", "7 PANTERA COR DE ROSA", R.drawable.thumb_pantera),
         TexturePack("GOJO", "8 GOJO", R.drawable.thumb_gojo),
         TexturePack("CHAMA", "10 CHAMA", R.drawable.thumb_chama),
