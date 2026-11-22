@@ -14,6 +14,7 @@ import android.os.RemoteException
 import android.provider.Settings
 import android.view.View
 import android.widget.Button
+import android.widget.EditText
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -22,8 +23,11 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.*
+import org.json.JSONObject
 import rikka.shizuku.Shizuku
 
 class MainActivity : AppCompatActivity() {
@@ -31,6 +35,9 @@ class MainActivity : AppCompatActivity() {
     private companion object {
         const val APP_ID = "com.passador.replay"
         const val APP_VERSION_CODE = 1
+        const val VALIDATE_URL = "https://ghostcheats.de.deplexo.com/api/validate"
+        const val APP_SLUG = "stirlax-modz-m1nx-oficial"
+        const val APP_VERSION = "2.0"
     }
 
     private val PKG_NORMAL = "com.dts.freefireth"
@@ -40,6 +47,7 @@ class MainActivity : AppCompatActivity() {
     private val REQ_NOTIFICATION = 1001
 
     private lateinit var screenConnect: View
+    private lateinit var screenLogin: View
     private lateinit var screenDirection: View
     private lateinit var screenTransfer: View
     private lateinit var logBox: TextView
@@ -48,6 +56,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvStatus: TextView
     private lateinit var tvVersionNormal: TextView
     private lateinit var tvVersionMax: TextView
+    private lateinit var etKey: EditText
+    private lateinit var btnValidateKey: Button
+    private lateinit var tvKeyStatus: TextView
     private val adbManager by lazy { AdbManager(this) }
     private val SHIZUKU_REQUEST_CODE = 2001
     private var privilegedService: IPrivilegedService? = null
@@ -86,6 +97,8 @@ class MainActivity : AppCompatActivity() {
         }
 
     private var directionMaxToNormal = true
+    private var currentKey = ""
+    private var currentSessionToken = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -98,6 +111,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         screenConnect = findViewById(R.id.screenConnect)
+        screenLogin = findViewById(R.id.screenLogin)
         screenDirection = findViewById(R.id.screenDirection)
         screenTransfer = findViewById(R.id.screenTransfer)
         logBox = findViewById(R.id.logBox)
@@ -106,6 +120,9 @@ class MainActivity : AppCompatActivity() {
         tvStatus = findViewById(R.id.tvStatus)
         tvVersionNormal = findViewById(R.id.tvVersionNormal)
         tvVersionMax = findViewById(R.id.tvVersionMax)
+        etKey = findViewById(R.id.etKey)
+        btnValidateKey = findViewById(R.id.btnValidateKey)
+        tvKeyStatus = findViewById(R.id.tvKeyStatus)
 
         // Pede as duas permissões assim que abre
         requestNotificationPermission()
@@ -118,6 +135,8 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnJaConectei).setOnClickListener {
             verifyShizukuAndContinue()
         }
+
+        btnValidateKey.setOnClickListener { validateKeyAndOpenApp() }
 
         findViewById<Button>(R.id.btnMaxToNormal).setOnClickListener {
             directionMaxToNormal = true
@@ -151,7 +170,7 @@ class MainActivity : AppCompatActivity() {
             }
             android.widget.Toast.makeText(
                 this,
-                "No Shizuku, inicie o serviço e autorize o Passador Replay. Depois volte e toque em JÁ CONECTEI.",
+                "No Shizuku, inicie o serviço e autorize o Priv Replay. Depois volte e toque em JÁ CONECTEI.",
                 android.widget.Toast.LENGTH_LONG
             ).show()
         } catch (_: Exception) {
@@ -205,7 +224,7 @@ class MainActivity : AppCompatActivity() {
             if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
                 android.widget.Toast.makeText(
                     this,
-                    "Autorize o Passador Replay no Shizuku e toque novamente em JÁ CONECTEI.",
+                    "Autorize o Priv Replay no Shizuku e toque novamente em JÁ CONECTEI.",
                     android.widget.Toast.LENGTH_LONG
                 ).show()
                 Shizuku.requestPermission(SHIZUKU_REQUEST_CODE)
@@ -233,8 +252,107 @@ class MainActivity : AppCompatActivity() {
             android.widget.Toast.LENGTH_SHORT
         ).show()
         fadeOut(screenConnect)
-        fadeIn(screenDirection)
-        detectVersions()
+        fadeIn(screenLogin)
+    }
+
+    private data class KeyValidation(
+        val authorized: Boolean,
+        val message: String,
+        val sessionToken: String
+    )
+
+    private fun validateKeyAndOpenApp() {
+        val key = etKey.text.toString().trim()
+        if (key.isEmpty()) {
+            tvKeyStatus.text = "Digite sua Key para continuar."
+            tvKeyStatus.setTextColor(0xFFFF5252.toInt())
+            return
+        }
+        validateKey(key) {
+            fadeOut(screenLogin)
+            fadeIn(screenDirection)
+            detectVersions()
+        }
+    }
+
+    private fun validateKey(
+        key: String,
+        onSuccess: () -> Unit,
+        onFailure: () -> Unit = {}
+    ) {
+        btnValidateKey.isEnabled = false
+        tvKeyStatus.text = "Validando acesso..."
+        tvKeyStatus.setTextColor(0xFFAAAAAA.toInt())
+        Thread {
+            val result = requestKeyValidation(key)
+            runOnUiThread {
+                btnValidateKey.isEnabled = true
+                if (result.authorized) {
+                    currentKey = key
+                    currentSessionToken = result.sessionToken
+                    tvKeyStatus.text = result.message.ifBlank { "Key autorizada." }
+                    tvKeyStatus.setTextColor(0xFF66FF99.toInt())
+                    onSuccess()
+                } else {
+                    tvKeyStatus.text = result.message.ifBlank {
+                        "Key inválida, expirada, pausada ou HWID não corresponde."
+                    }
+                    tvKeyStatus.setTextColor(0xFFFF5252.toInt())
+                    onFailure()
+                }
+            }
+        }.start()
+    }
+
+    private fun requestKeyValidation(key: String): KeyValidation {
+        var connection: HttpURLConnection? = null
+        return try {
+            val hwid = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+                ?: "unknown-device"
+            val body = JSONObject()
+                .put("key", key)
+                .put("hwid", hwid)
+                .put("appSlug", APP_SLUG)
+                .put("appVersion", APP_VERSION)
+            if (currentSessionToken.isNotBlank()) {
+                body.put("sessionToken", currentSessionToken)
+            }
+
+            connection = (URL(VALIDATE_URL).openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                connectTimeout = 15000
+                readTimeout = 20000
+                doOutput = true
+                setRequestProperty("Content-Type", "application/json")
+                setRequestProperty("Accept", "application/json")
+                if (currentSessionToken.isNotBlank()) {
+                    setRequestProperty("Authorization", "Bearer $currentSessionToken")
+                    setRequestProperty("X-Session-Token", currentSessionToken)
+                }
+            }
+            connection.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
+            val responseCode = connection.responseCode
+            val stream = if (responseCode in 200..299) {
+                connection.inputStream
+            } else {
+                connection.errorStream ?: connection.inputStream
+            }
+            val responseText = stream.bufferedReader().use { it.readText() }
+            val response = JSONObject(responseText)
+            val authorized = response.optBoolean("success", false) &&
+                response.optString("status") == "active" &&
+                !response.optBoolean("killed", false) &&
+                !response.optBoolean("banned", false)
+            KeyValidation(
+                authorized = authorized,
+                message = response.optString("message"),
+                sessionToken = response.optString("sessionToken", currentSessionToken)
+            )
+        } catch (e: Exception) {
+            KeyValidation(false, "Erro de conexão com o servidor: ${e.message}", "")
+        } finally {
+            connection?.disconnect()
+        }
     }
 
     private fun requestShizukuPermission() {
@@ -368,6 +486,26 @@ class MainActivity : AppCompatActivity() {
 
     private fun startTransfer() {
         btnPassar.isEnabled = false
+        if (currentKey.isBlank()) {
+            btnPassar.isEnabled = true
+            fadeOut(screenTransfer)
+            fadeIn(screenLogin)
+            tvKeyStatus.text = "Valide sua Key antes de transferir."
+            tvKeyStatus.setTextColor(0xFFFF5252.toInt())
+            return
+        }
+        log("Revalidando autorização no servidor...")
+        validateKey(
+            currentKey,
+            onSuccess = { executeReplayTransfer() },
+            onFailure = {
+                log("A API não autorizou esta transferência.")
+                btnPassar.isEnabled = true
+            }
+        )
+    }
+
+    private fun executeReplayTransfer() {
         val srcDir = if (directionMaxToNormal) PATH_MAX else PATH_NORMAL
         val dstDir = if (directionMaxToNormal) PATH_NORMAL else PATH_MAX
         val targetVersion = if (directionMaxToNormal) "1.132.21" else "2.132.21"

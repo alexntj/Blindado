@@ -17,7 +17,7 @@
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
-        android:label="Passador Replay"
+        android:label="Priv Replay"
         android:theme="@style/Theme.Passador">
 
         <activity
