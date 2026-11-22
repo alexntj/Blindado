@@ -1,12 +1,16 @@
 package com.passador.replay
 
 import android.Manifest
+import android.content.ComponentName
 import android.content.Intent
+import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.os.IBinder
+import android.os.RemoteException
 import android.provider.Settings
 import android.view.View
 import android.widget.Button
@@ -20,6 +24,7 @@ import androidx.core.view.WindowInsetsCompat
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
+import rikka.shizuku.Shizuku
 
 class MainActivity : AppCompatActivity() {
 
@@ -39,6 +44,46 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvVersionNormal: TextView
     private lateinit var tvVersionMax: TextView
     private val adbManager by lazy { AdbManager(this) }
+    private val SHIZUKU_REQUEST_CODE = 2001
+    private var privilegedService: IPrivilegedService? = null
+    private var pendingCommand: String? = null
+    private var pendingCallback: ((String?) -> Unit)? = null
+
+    private val shizukuArgs by lazy {
+        Shizuku.UserServiceArgs(
+            ComponentName(BuildConfig.APPLICATION_ID, PrivilegedService::class.java.name)
+        ).daemon(false)
+            .processNameSuffix("privileged")
+            .debuggable(BuildConfig.DEBUG)
+            .version(BuildConfig.VERSION_CODE)
+    }
+
+    private val shizukuConnection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName, binder: IBinder) {
+            privilegedService = IPrivilegedService.Stub.asInterface(binder)
+            val command = pendingCommand
+            val callback = pendingCallback
+            pendingCommand = null
+            pendingCallback = null
+            if (command != null && callback != null) executePrivilegedNow(command, callback)
+        }
+
+        override fun onServiceDisconnected(name: ComponentName) {
+            privilegedService = null
+        }
+    }
+
+    private val shizukuPermissionListener =
+        Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
+            if (requestCode == SHIZUKU_REQUEST_CODE) {
+                val message = if (grantResult == PackageManager.PERMISSION_GRANTED) {
+                    "Shizuku autorizado para este aplicativo."
+                } else {
+                    "Permissão do Shizuku recusada."
+                }
+                android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_LONG).show()
+            }
+        }
 
     private var directionMaxToNormal = true
 
@@ -65,15 +110,19 @@ class MainActivity : AppCompatActivity() {
         // Pede as duas permissões assim que abre
         requestNotificationPermission()
         requestAllFilesPermission()
+        Shizuku.addRequestPermissionResultListener(shizukuPermissionListener)
+        requestShizukuPermission()
 
         findViewById<Button>(R.id.btnConectar).setOnClickListener {
             openDeveloperOptions()
         }
 
         findViewById<Button>(R.id.btnJaConectei).setOnClickListener {
-            fadeOut(screenConnect)
-            fadeIn(screenDirection)
-            detectVersions()
+            if (hasShizukuPermission()) {
+                fadeOut(screenConnect)
+                fadeIn(screenDirection)
+                detectVersions()
+            }
         }
 
         findViewById<Button>(R.id.btnMaxToNormal).setOnClickListener {
@@ -111,6 +160,80 @@ class MainActivity : AppCompatActivity() {
             "Faça o pareamento pelo Android. O código aparecerá na notificação/sistema; depois toque em JÁ CONECTEI.",
             android.widget.Toast.LENGTH_LONG
         ).show()
+    }
+
+    private fun hasShizukuPermission(): Boolean {
+        return try {
+            if (!Shizuku.pingBinder()) {
+                android.widget.Toast.makeText(
+                    this,
+                    "Inicie o serviço do Shizuku e tente novamente.",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+                false
+            } else if (Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
+                true
+            } else if (Shizuku.shouldShowRequestPermissionRationale()) {
+                android.widget.Toast.makeText(
+                    this,
+                    "Permita este aplicativo no Shizuku.",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+                false
+            } else {
+                Shizuku.requestPermission(SHIZUKU_REQUEST_CODE)
+                false
+            }
+        } catch (e: Throwable) {
+            log("Shizuku indisponível: ${e.message}")
+            false
+        }
+    }
+
+    private fun requestShizukuPermission() {
+        if (!Shizuku.isPreV11()) hasShizukuPermission()
+    }
+
+    private fun executePrivileged(command: String, callback: (String?) -> Unit) {
+        if (!hasShizukuPermission()) {
+            callback(null)
+            return
+        }
+        if (privilegedService != null) {
+            executePrivilegedNow(command, callback)
+            return
+        }
+        pendingCommand = command
+        pendingCallback = callback
+        try {
+            Shizuku.bindUserService(shizukuArgs, shizukuConnection)
+        } catch (e: Throwable) {
+            pendingCommand = null
+            pendingCallback = null
+            log("Falha ao iniciar serviço Shizuku: ${e.message}")
+            callback(null)
+        }
+    }
+
+    private fun executePrivilegedNow(command: String, callback: (String?) -> Unit) {
+        Thread {
+            val result = try {
+                privilegedService?.execute(command)
+            } catch (e: RemoteException) {
+                log("Erro no serviço Shizuku: ${e.message}")
+                null
+            }
+            runOnUiThread { callback(result) }
+        }.start()
+    }
+
+    override fun onDestroy() {
+        Shizuku.removeRequestPermissionResultListener(shizukuPermissionListener)
+        try {
+            Shizuku.unbindUserService(shizukuArgs, shizukuConnection, true)
+        } catch (_: Throwable) {
+        }
+        super.onDestroy()
     }
 
     private fun requestNotificationPermission() {
@@ -205,37 +328,25 @@ class MainActivity : AppCompatActivity() {
 
     private fun startTransfer() {
         btnPassar.isEnabled = false
-        log("Iniciando transferência via ADB...")
+        log("Iniciando transferência via Shizuku...")
 
-        Thread {
-            if (!adbManager.connect()) {
-                runOnUiThread {
-                    log("ERRO: Não foi possível conectar ao ADB. Ative a Depuração sem fio nas configurações.")
-                    btnPassar.isEnabled = true
-                }
-                return@Thread
-            }
+        val srcDir = if (directionMaxToNormal) PATH_MAX else PATH_NORMAL
+        val dstDir = if (directionMaxToNormal) PATH_NORMAL else PATH_MAX
+        val cmd = "mkdir -p '$dstDir' && cp -r '${srcDir}'* '$dstDir'/"
 
-            val srcDir = if (directionMaxToNormal) PATH_MAX else PATH_NORMAL
-            val dstDir = if (directionMaxToNormal) PATH_NORMAL else PATH_MAX
-
-            val cmd = "mkdir -p $dstDir && cp -r $srcDir* $dstDir/"
-            val result = adbManager.executeCommand(cmd)
-
-            runOnUiThread {
-                if (result != null) {
-                    log("Comando ADB executado com sucesso!")
-                    if (result.isNotEmpty()) log(result)
-                } else {
-                    log("Falha no comando ADB.")
-                }
-                adbManager.disconnect()
+        executePrivileged(cmd) { result ->
+            if (result != null) {
+                log("Comando executado com Shizuku.")
+                if (result.isNotEmpty()) log(result)
                 btnPassar.visibility = View.GONE
                 btnBypass.visibility = View.VISIBLE
                 btnBypass.alpha = 0f
                 btnBypass.animate().alpha(1f).setDuration(350).start()
+            } else {
+                log("Falha: Shizuku não executou o comando.")
+                btnPassar.isEnabled = true
             }
-        }.start()
+        }
     }
 
     private fun doBypass() {
