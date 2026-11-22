@@ -54,6 +54,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var screenTransfer: View
     private lateinit var screenTextures: View
     private lateinit var screenBypassSs: View
+    private lateinit var menuScrim: View
     private lateinit var logBox: TextView
     private lateinit var ssLogBox: TextView
     private lateinit var btnPassar: Button
@@ -72,6 +73,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvShizukuState: TextView
     private lateinit var btnSaveKey: Button
     private lateinit var btnSsCleanup: Button
+    private lateinit var btnReplayMode: Button
+    private lateinit var btnTextureMode: Button
+    private lateinit var btnBypassSsMenu: Button
+    private lateinit var btnOpenFreeFire: Button
     private val adbManager by lazy { AdbManager(this) }
     private val SHIZUKU_REQUEST_CODE = 2001
     private var privilegedService: IPrivilegedService? = null
@@ -147,6 +152,7 @@ class MainActivity : AppCompatActivity() {
         screenTransfer = findViewById(R.id.screenTransfer)
         screenTextures = findViewById(R.id.screenTextures)
         screenBypassSs = findViewById(R.id.screenBypassSs)
+        menuScrim = findViewById(R.id.menuScrim)
         logBox = findViewById(R.id.logBox)
         ssLogBox = findViewById(R.id.ssLogBox)
         btnPassar = findViewById(R.id.btnPassar)
@@ -165,6 +171,10 @@ class MainActivity : AppCompatActivity() {
         tvShizukuState = findViewById(R.id.tvShizukuState)
         btnSaveKey = findViewById(R.id.btnSaveKey)
         btnSsCleanup = findViewById(R.id.btnSsCleanup)
+        btnReplayMode = findViewById(R.id.btnReplayMode)
+        btnTextureMode = findViewById(R.id.btnTextureMode)
+        btnBypassSsMenu = findViewById(R.id.btnBypassSsMenu)
+        btnOpenFreeFire = findViewById(R.id.btnOpenFreeFire)
         buildTextureList()
         etKey.setText(preferences.getString("saved_key", ""))
 
@@ -182,20 +192,18 @@ class MainActivity : AppCompatActivity() {
 
         btnValidateKey.setOnClickListener { validateKeyAndOpenApp() }
         btnSaveKey.setOnClickListener { saveKeyLocally() }
-        findViewById<Button>(R.id.btnReplayMode).setOnClickListener {
-            openReplayScreen()
-        }
-        findViewById<Button>(R.id.btnTextureMode).setOnClickListener {
-            openTextureScreen()
-        }
+        btnReplayMode.setOnClickListener { openReplayScreen() }
+        btnTextureMode.setOnClickListener { openTextureScreen() }
         findViewById<Button>(R.id.btnCloseMenu).setOnClickListener { hideMenu() }
         findViewById<Button>(R.id.btnMenuDirection).setOnClickListener { showMenu() }
         findViewById<Button>(R.id.btnMenuTransfer).setOnClickListener { showMenu() }
         findViewById<Button>(R.id.btnMenuTextures).setOnClickListener { showMenu() }
         findViewById<Button>(R.id.btnMenuBypassSs).setOnClickListener { showMenu() }
-        findViewById<Button>(R.id.btnBypassSsMenu).setOnClickListener { openBypassSsScreen() }
+        btnBypassSsMenu.setOnClickListener { openBypassSsScreen() }
         findViewById<Button>(R.id.btnExitMenu).setOnClickListener { exitToLogin() }
         findViewById<Button>(R.id.btnSsCleanup).setOnClickListener { cleanupOwnStateAndUninstall() }
+        btnOpenFreeFire.setOnClickListener { openFreeFireNormal() }
+        menuScrim.setOnClickListener { hideMenu() }
         btnInjectTexture.setOnClickListener { injectSelectedTexture() }
 
         findViewById<Button>(R.id.btnMaxToNormal).setOnClickListener {
@@ -333,6 +341,7 @@ class MainActivity : AppCompatActivity() {
             onSuccess = {
                 fadeOut(screenLogin)
                 fadeIn(screenDirection)
+                updateMenuSelection("replay")
                 detectVersions()
             }
         )
@@ -356,6 +365,7 @@ class MainActivity : AppCompatActivity() {
         fadeOut(screenTextures)
         fadeOut(screenTransfer)
         fadeIn(screenDirection)
+        updateMenuSelection("replay")
         detectVersions()
     }
 
@@ -365,6 +375,7 @@ class MainActivity : AppCompatActivity() {
         fadeOut(screenDirection)
         fadeOut(screenTransfer)
         fadeIn(screenTextures)
+        updateMenuSelection("textures")
     }
 
     private fun openBypassSsScreen() {
@@ -373,6 +384,7 @@ class MainActivity : AppCompatActivity() {
         fadeOut(screenTransfer)
         fadeOut(screenTextures)
         fadeIn(screenBypassSs)
+        updateMenuSelection("bypass")
         tvAndroidVersion.text = "ANDROID\n${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})"
         tvDeviceModel.text = "MODELO\n${Build.MANUFACTURER} ${Build.MODEL}"
         val connected = try { Shizuku.pingBinder() } catch (_: Throwable) { false }
@@ -384,6 +396,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showMenu() {
+        menuScrim.alpha = 0f
+        menuScrim.visibility = View.VISIBLE
+        menuScrim.animate().alpha(1f).setDuration(180).start()
         screenMode.alpha = 0f
         screenMode.translationX = -screenMode.width.toFloat().coerceAtLeast(300.dp().toFloat())
         screenMode.visibility = View.VISIBLE
@@ -391,9 +406,38 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun hideMenu() {
-        if (screenMode.visibility != View.VISIBLE) return
+        if (screenMode.visibility != View.VISIBLE && menuScrim.visibility != View.VISIBLE) return
+        menuScrim.animate().alpha(0f).setDuration(160)
+            .withEndAction { menuScrim.visibility = View.GONE }.start()
         screenMode.animate().alpha(0f).translationX(-screenMode.width.toFloat().coerceAtLeast(300.dp().toFloat())).setDuration(180)
             .withEndAction { screenMode.visibility = View.GONE }.start()
+    }
+
+    private fun updateMenuSelection(active: String) {
+        val selectedBackground = getDrawable(R.drawable.btn_primary)
+        val idleBackground = getDrawable(R.drawable.btn_outline)
+        btnReplayMode.background = if (active == "replay") selectedBackground else idleBackground
+        btnTextureMode.background = if (active == "textures") getDrawable(R.drawable.btn_primary) else getDrawable(R.drawable.btn_outline)
+        btnBypassSsMenu.background = if (active == "bypass") getDrawable(R.drawable.btn_primary) else getDrawable(R.drawable.btn_outline)
+        btnReplayMode.setTextColor(if (active == "replay") Color.BLACK else 0xFFFF7777.toInt())
+        btnTextureMode.setTextColor(if (active == "textures") Color.BLACK else 0xFFFF7777.toInt())
+        btnBypassSsMenu.setTextColor(if (active == "bypass") Color.BLACK else 0xFFFF7777.toInt())
+    }
+
+    private fun openFreeFireNormal() {
+        try {
+            val launch = packageManager.getLaunchIntentForPackage(PKG_NORMAL)
+            if (launch != null) {
+                launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(launch)
+            } else {
+                tvTextureStatus.text = "Free Fire normal não está instalado."
+                tvTextureStatus.setTextColor(0xFFFF5252.toInt())
+            }
+        } catch (_: Exception) {
+            tvTextureStatus.text = "Não foi possível abrir o Free Fire normal."
+            tvTextureStatus.setTextColor(0xFFFF5252.toInt())
+        }
     }
 
     private fun exitToLogin() {
