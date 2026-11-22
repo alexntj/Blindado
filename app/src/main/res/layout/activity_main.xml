@@ -39,7 +39,7 @@
             android:layout_marginTop="20dp"
             android:background="#1A0000"
             android:padding="16dp"
-            android:text="COMO APARECER O CÓDIGO DE 6 DÍGITOS:\n\n1. Toque em “ABRIR OPÇÕES DE DESENVOLVEDOR”\n2. Ative a opção “Depuração sem fio”\n3. Toque em “Emparelhar dispositivo com código”\n4. A notificação com o código de 6 dígitos vai aparecer\n5. Digite o código\n6. Volte aqui e toque em “JÁ CONECTEI”"
+            android:text="COMO PAREAR PELO ANDROID:\n\n1. Toque em “ABRIR OPÇÕES DE DESENVOLVEDOR”\n2. Ative a opção “Depuração sem fio”\n3. Use “Emparelhar dispositivo com código” nas configurações do Android\n4. Confirme o código de 6 dígitos na notificação/tela do sistema\n5. Depois do pareamento, volte aqui e toque em “JÁ CONECTEI”"
             android:textColor="#FFCCCC"
             android:textSize="13sp"
             android:lineSpacingExtra="3dp" />
@@ -76,7 +76,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="54dp"
                 android:background="?attr/selectableItemBackground"
-                android:text="PAREAR COM CÓDIGO"
+                android:text="PAREAR PELO ANDROID"
                 android:textColor="#FFFFFF"
                 android:textSize="14sp"
                 android:fontFamily="sans-serif-medium" />

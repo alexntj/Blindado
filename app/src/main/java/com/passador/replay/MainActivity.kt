@@ -94,70 +94,23 @@ class MainActivity : AppCompatActivity() {
         btnBypass.setOnClickListener { doBypass() }
 
 
-        findViewById<Button>(R.id.btnParear).setOnClickListener { showPairingDialog() }
+        findViewById<Button>(R.id.btnParear).setOnClickListener { openWirelessPairingSettings() }
 
         screenConnect.alpha = 0f
         screenConnect.animate().alpha(1f).setDuration(500).start()
     }
 
-    private fun showPairingDialog() {
-        val form = android.widget.LinearLayout(this).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
-            setPadding(32, 8, 32, 0)
+    private fun openWirelessPairingSettings() {
+        try {
+            startActivity(Intent("android.settings.WIRELESS_DEBUGGING_SETTINGS"))
+        } catch (_: Exception) {
+            openDeveloperOptions()
         }
-        val host = android.widget.EditText(this).apply {
-            hint = "IP do dispositivo (ex: 192.168.18.21)"
-            setSingleLine(true)
-            setText(adbManager.suggestedHost())
-        }
-        val port = android.widget.EditText(this).apply {
-            hint = "Porta exibida no Android"
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER
-            setSingleLine(true)
-        }
-        val code = android.widget.EditText(this).apply {
-            hint = "Código de 6 dígitos"
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER
-            setSingleLine(true)
-            filters = arrayOf(android.text.InputFilter.LengthFilter(6))
-        }
-        form.addView(host)
-        form.addView(port)
-        form.addView(code)
-
-        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("Parear Depuração sem fio")
-            .setMessage("Abra a opção 'Emparelhar dispositivo com código' no Android e informe os dados exibidos.")
-            .setView(form)
-            .setNegativeButton("Cancelar", null)
-            .setPositiveButton("Parear", null)
-            .create()
-        dialog.setOnShowListener {
-            dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                val ip = host.text.toString().trim()
-                val pairingPort = port.text.toString().toIntOrNull() ?: 0
-                val pairingCode = code.text.toString().trim()
-                if (ip.isBlank() || pairingPort !in 1..65535 || pairingCode.length != 6) {
-                    android.widget.Toast.makeText(this, "Informe IP, porta e código de 6 dígitos.", android.widget.Toast.LENGTH_LONG).show()
-                    return@setOnClickListener
-                }
-                dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).isEnabled = false
-                Thread {
-                    val paired = adbManager.pair(ip, pairingPort, pairingCode)
-                    val connected = paired && adbManager.connect()
-                    runOnUiThread {
-                        dialog.dismiss()
-                        val message = when {
-                            connected -> "ADB pareado e conectado."
-                            paired -> "Pareou, mas não conectou. Ative a Depuração sem fio e tente novamente."
-                            else -> "Falha: ${adbManager.lastError}"
-                        }
-                        android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_LONG).show()
-                    }
-                }.start()
-            }
-        }
-        dialog.show()
+        android.widget.Toast.makeText(
+            this,
+            "Faça o pareamento pelo Android. O código aparecerá na notificação/sistema; depois toque em JÁ CONECTEI.",
+            android.widget.Toast.LENGTH_LONG
+        ).show()
     }
 
     private fun requestNotificationPermission() {
