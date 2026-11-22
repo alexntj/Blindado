@@ -354,7 +354,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateTransferUI() {
         val title = findViewById<TextView>(R.id.tvTransferTitle)
-        title.text = if (directionMaxToNormal) "FF MAX  →  FF NORMAL" else "FF NORMAL  →  FF MAX"
+        title.text = if (directionMaxToNormal) {
+            "TRANSFERIR FF MAX  →  FF NORMAL"
+        } else {
+            "TRANSFERIR FF NORMAL  →  FF MAX"
+        }
         logBox.text = ""
         btnBypass.visibility = View.GONE
         btnPassar.visibility = View.VISIBLE
@@ -363,25 +367,109 @@ class MainActivity : AppCompatActivity() {
 
     private fun startTransfer() {
         btnPassar.isEnabled = false
-        log("Iniciando transferência via Shizuku...")
-
         val srcDir = if (directionMaxToNormal) PATH_MAX else PATH_NORMAL
         val dstDir = if (directionMaxToNormal) PATH_NORMAL else PATH_MAX
-        val cmd = "mkdir -p '$dstDir' && cp -r '${srcDir}'* '$dstDir'/"
+        val targetVersion = if (directionMaxToNormal) "1.132.21" else "2.132.21"
+        log("Verificando Shizuku...")
+        log("Origem: $srcDir")
+        log("Destino: $dstDir")
 
-        executePrivileged(cmd) { result ->
+        executePrivileged(buildTransferCommand(srcDir, dstDir, targetVersion)) { result ->
             if (result != null) {
-                log("Comando executado com Shizuku.")
-                if (result.isNotEmpty()) log(result)
-                btnPassar.visibility = View.GONE
-                btnBypass.visibility = View.VISIBLE
-                btnBypass.alpha = 0f
-                btnBypass.animate().alpha(1f).setDuration(350).start()
+                result.lineSequence()
+                    .filter { it.isNotBlank() }
+                    .forEach { line -> log(line) }
+
+                if (result.contains("[RESULT] TRANSFER_OK")) {
+                    log("Transferência concluída com sucesso.")
+                    log("Version aplicada: $targetVersion")
+                    btnPassar.visibility = View.GONE
+                    btnBypass.visibility = View.VISIBLE
+                    btnBypass.alpha = 0f
+                    btnBypass.animate().alpha(1f).setDuration(350).start()
+                } else {
+                    log("Falha: a transferência não foi concluída.")
+                    btnPassar.isEnabled = true
+                }
             } else {
                 log("Falha: Shizuku não executou o comando.")
                 btnPassar.isEnabled = true
             }
         }
+    }
+
+    private fun buildTransferCommand(srcDir: String, dstDir: String, targetVersion: String): String {
+        return """
+            set -u
+            SRC_DIR='$srcDir'
+            DST_DIR='$dstDir'
+            TARGET_VERSION='$targetVersion'
+            MARKER="${'$'}DST_DIR/.transfer_interna"
+            RECENT_BIN=''
+            RECENT_JSON=''
+            JSON_FILE=''
+            JSON_TMP=''
+
+            fail() {
+                echo "[ERROR] ${'$'}1"
+                exit 1
+            }
+
+            cleanup() {
+                rm -f "${'$'}MARKER" "${'$'}JSON_TMP" 2>/dev/null || true
+            }
+
+            trap cleanup EXIT INT TERM HUP
+
+            echo "[PROGRESS] Verificando pasta de origem"
+            [ -d "${'$'}SRC_DIR" ] || fail "Pasta de origem não existe"
+
+            echo "[PROGRESS] Procurando replay mais recente"
+            RECENT_BIN=${'$'}(ls -1t "${'$'}SRC_DIR"/*_rep.bin 2>/dev/null | head -n 1)
+            [ -n "${'$'}RECENT_BIN" ] || fail "Nenhum arquivo _rep.bin encontrado"
+
+            RECENT_JSON="${'$'}{RECENT_BIN%_rep.bin}_rep.json"
+            [ -f "${'$'}RECENT_JSON" ] || fail "JSON correspondente não encontrado"
+
+            echo "[PROGRESS] Verificando BIN e JSON"
+            BIN_NAME=${'$'}(basename "${'$'}RECENT_BIN")
+            JSON_NAME=${'$'}(basename "${'$'}RECENT_JSON")
+            JSON_FILE="${'$'}DST_DIR/${'$'}JSON_NAME"
+            JSON_TMP="${'$'}JSON_FILE.tmp.${'$'}${'$}"
+
+            echo "[PROGRESS] Criando pasta de destino"
+            mkdir -p "${'$'}DST_DIR" || fail "Não foi possível criar a pasta de destino"
+
+            echo "[PROGRESS] Ativando marcador"
+            touch "${'$'}MARKER" || fail "Não foi possível criar o marcador"
+
+            echo "[PROGRESS] Copiando arquivos"
+            cp -f "${'$'}RECENT_BIN" "${'$'}DST_DIR/${'$'}BIN_NAME" || fail "Falha ao copiar o BIN"
+            cp -f "${'$'}RECENT_JSON" "${'$'}JSON_FILE" || fail "Falha ao copiar o JSON"
+
+            echo "[PROGRESS] Atualizando Version"
+            VERSION_COUNT=${'$'}(grep -Eo '"[Vv]ersion"[[:space:]]*:' "${'$'}JSON_FILE" 2>/dev/null | wc -l | tr -d ' ')
+            [ "${'$'}VERSION_COUNT" = "1" ] || fail "Campo Version ausente ou duplicado no JSON"
+            sed -E "s/(\"[Vv]ersion\"[[:space:]]*:[[:space:]]*)\"[^\"]*\"/\\1\"${'$'}TARGET_VERSION\"/" "${'$'}JSON_FILE" > "${'$'}JSON_TMP" || fail "Falha ao atualizar o JSON"
+            grep -Eq '"[Vv]ersion"[[:space:]]*:[[:space:]]*"'"${'$'}TARGET_VERSION"'"' "${'$'}JSON_TMP" || fail "Version não foi atualizada"
+            mv -f "${'$'}JSON_TMP" "${'$'}JSON_FILE" || fail "Falha ao salvar o JSON atualizado"
+
+            echo "[PROGRESS] Ajustando permissões e datas"
+            chmod 666 "${'$'}DST_DIR/${'$'}BIN_NAME" "${'$'}JSON_FILE" 2>/dev/null || echo "[INFO] chmod não permitido; arquivos mantidos"
+            touch -r "${'$'}RECENT_BIN" "${'$'}DST_DIR/${'$'}BIN_NAME" || fail "Falha ao preservar a data do BIN"
+            touch -r "${'$'}RECENT_JSON" "${'$'}JSON_FILE" || fail "Falha ao preservar a data do JSON"
+
+            echo "[PROGRESS] Validando arquivos"
+            [ -s "${'$'}DST_DIR/${'$'}BIN_NAME" ] || fail "BIN de destino vazio ou ausente"
+            [ -s "${'$'}JSON_FILE" ] || fail "JSON de destino vazio ou ausente"
+            SRC_BIN_SIZE=${'$'}(stat -c %s "${'$'}RECENT_BIN" 2>/dev/null) || fail "Não foi possível ler o tamanho do BIN original"
+            DST_BIN_SIZE=${'$'}(stat -c %s "${'$'}DST_DIR/${'$'}BIN_NAME" 2>/dev/null) || fail "Não foi possível ler o tamanho do BIN copiado"
+            [ "${'$'}SRC_BIN_SIZE" = "${'$'}DST_BIN_SIZE" ] || fail "O tamanho do BIN copiado não confere"
+
+            echo "[PROGRESS] Removendo marcador"
+            rm -f "${'$'}MARKER" || fail "Não foi possível remover o marcador"
+            echo "[RESULT] TRANSFER_OK"
+        """.trimIndent()
     }
 
     private fun doBypass() {

@@ -114,7 +114,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="64dp"
                 android:background="?attr/selectableItemBackground"
-                android:text="FF MAX  ⇒  FF NORMAL"
+                android:text="TRANSFERIR FF MAX  →  FF NORMAL"
                 android:textColor="#FF1A1A"
                 android:textSize="15sp" />
         </androidx.cardview.widget.CardView>
@@ -132,7 +132,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="64dp"
                 android:background="?attr/selectableItemBackground"
-                android:text="FF NORMAL  ⇒  FF MAX"
+                android:text="TRANSFERIR FF NORMAL  →  FF MAX"
                 android:textColor="#FF1A1A"
                 android:textSize="15sp" />
         </androidx.cardview.widget.CardView>
