@@ -18,7 +18,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="PRIV REPLAY"
+            android:text="PRIV BYPASS"
             android:textColor="#FF1A1A"
             android:textSize="13sp"
             android:letterSpacing="0.18"
@@ -39,7 +39,7 @@
             android:layout_marginTop="20dp"
             android:background="#1A0000"
             android:padding="16dp"
-            android:text="COMO CONECTAR:\n\n1. Toque em “ABRIR SHIZUKU”\n2. Inicie o serviço, se necessário\n3. Autorize o Priv Replay no Shizuku\n4. Volte e toque em “JÁ CONECTEI”\n5. Depois valide sua Key para acessar o aplicativo"
+            android:text="COMO CONECTAR:\n\n1. Toque em “ABRIR SHIZUKU”\n2. Inicie o serviço, se necessário\n3. Autorize o Priv Bypass no Shizuku\n4. Volte e toque em “JÁ CONECTEI”\n5. Depois valide sua Key para acessar o aplicativo"
             android:textColor="#FFCCCC"
             android:textSize="13sp"
             android:lineSpacingExtra="3dp" />
@@ -96,7 +96,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="PRIV REPLAY"
+            android:text="PRIV BYPASS"
             android:textColor="#FF1A1A"
             android:textSize="13sp"
             android:letterSpacing="0.18"
@@ -168,7 +168,7 @@
             android:layout_height="50dp"
             android:layout_marginTop="12dp"
             android:background="@drawable/btn_outline"
-            android:text="DISCORD OFC  •  ENTRAR NA COMUNIDADE"
+            android:text="DISCORD OFC"
             android:textAllCaps="false"
             android:textColor="#FF6666"
             android:textSize="13sp"
@@ -225,7 +225,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="64dp"
                 android:background="?attr/selectableItemBackground"
-                android:text="REPASS REPLAY FF MAX-FF"
+                android:text="BYPASS FF MAX PARA FF"
                 android:textColor="#FF1A1A"
                 android:textSize="15sp" />
         </androidx.cardview.widget.CardView>
@@ -243,7 +243,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="64dp"
                 android:background="?attr/selectableItemBackground"
-                android:text="REPASS REPLAY FF-FF MAX"
+                android:text="BYPASS FF PARA FF MAX"
                 android:textColor="#FF1A1A"
                 android:textSize="15sp" />
         </androidx.cardview.widget.CardView>

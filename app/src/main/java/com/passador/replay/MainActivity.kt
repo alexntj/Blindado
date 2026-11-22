@@ -170,7 +170,7 @@ class MainActivity : AppCompatActivity() {
             }
             android.widget.Toast.makeText(
                 this,
-                "No Shizuku, inicie o serviço e autorize o Priv Replay. Depois volte e toque em JÁ CONECTEI.",
+                "No Shizuku, inicie o serviço e autorize o Priv Bypass. Depois volte e toque em JÁ CONECTEI.",
                 android.widget.Toast.LENGTH_LONG
             ).show()
         } catch (_: Exception) {
@@ -224,7 +224,7 @@ class MainActivity : AppCompatActivity() {
             if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
                 android.widget.Toast.makeText(
                     this,
-                    "Autorize o Priv Replay no Shizuku e toque novamente em JÁ CONECTEI.",
+                    "Autorize o Priv Bypass no Shizuku e toque novamente em JÁ CONECTEI.",
                     android.widget.Toast.LENGTH_LONG
                 ).show()
                 Shizuku.requestPermission(SHIZUKU_REQUEST_CODE)
@@ -441,9 +441,9 @@ class MainActivity : AppCompatActivity() {
     private fun updateTransferUI() {
         val title = findViewById<TextView>(R.id.tvTransferTitle)
         title.text = if (directionMaxToNormal) {
-            "REPASS REPLAY FF MAX-FF"
+            "BYPASS FF MAX PARA FF"
         } else {
-            "REPASS REPLAY FF-FF MAX"
+            "BYPASS FF PARA FF MAX"
         }
         logBox.text = ""
         btnBypass.visibility = View.GONE
