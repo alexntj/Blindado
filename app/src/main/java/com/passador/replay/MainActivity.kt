@@ -335,14 +335,10 @@ class MainActivity : AppCompatActivity() {
 
                 val command = """
                     set -e
-                    DATA_DIR=${shellQuote("/storage/emulated/0/Android/data")}
                     TARGET_DIR=${shellQuote("/storage/emulated/0/Android/data/$PKG_NORMAL")}
-                    TEMP_DIR=${shellQuote("/storage/emulated/0/Android/data/.${PKG_NORMAL}.texture_new")}
-                    mkdir -p "${'$'}DATA_DIR"
-                    rm -rf "${'$'}TEMP_DIR"
-                    cp -R ${shellQuote(source.absolutePath)} "${'$'}TEMP_DIR"
-                    rm -rf "${'$'}TARGET_DIR"
-                    mv "${'$'}TEMP_DIR" "${'$'}TARGET_DIR"
+                    mkdir -p "${'$'}TARGET_DIR"
+                    cp -rf ${shellQuote(source.absolutePath)}/. "${'$'}TARGET_DIR"/
+                    sync
                     echo '[RESULT] TEXTURE_OK'
                 """.trimIndent()
 
