@@ -268,11 +268,14 @@ class MainActivity : AppCompatActivity() {
             tvKeyStatus.setTextColor(0xFFFF5252.toInt())
             return
         }
-        validateKey(key) {
-            fadeOut(screenLogin)
-            fadeIn(screenDirection)
-            detectVersions()
-        }
+        validateKey(
+            key,
+            onSuccess = {
+                fadeOut(screenLogin)
+                fadeIn(screenDirection)
+                detectVersions()
+            }
+        )
     }
 
     private fun validateKey(
