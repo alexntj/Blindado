@@ -53,7 +53,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var screenDirection: View
     private lateinit var screenTransfer: View
     private lateinit var screenTextures: View
+    private lateinit var screenBypassSs: View
     private lateinit var logBox: TextView
+    private lateinit var ssLogBox: TextView
     private lateinit var btnPassar: Button
     private lateinit var btnBypass: Button
     private lateinit var tvStatus: TextView
@@ -65,6 +67,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var textureList: LinearLayout
     private lateinit var btnInjectTexture: Button
     private lateinit var tvTextureStatus: TextView
+    private lateinit var tvAndroidVersion: TextView
+    private lateinit var tvDeviceModel: TextView
+    private lateinit var tvShizukuState: TextView
+    private lateinit var btnSaveKey: Button
+    private lateinit var btnSsCleanup: Button
     private val adbManager by lazy { AdbManager(this) }
     private val SHIZUKU_REQUEST_CODE = 2001
     private var privilegedService: IPrivilegedService? = null
@@ -105,6 +112,7 @@ class MainActivity : AppCompatActivity() {
     private var directionMaxToNormal = true
     private var currentKey = ""
     private var currentSessionToken = ""
+    private val preferences by lazy { getSharedPreferences("priv_bypass_preferences", MODE_PRIVATE) }
     private data class TexturePack(val displayName: String, val folderName: String, val thumbnail: Int)
     private val texturePacks = arrayOf(
         TexturePack("BAKI", "2 BAKI", R.drawable.thumb_baki),
@@ -138,7 +146,9 @@ class MainActivity : AppCompatActivity() {
         screenDirection = findViewById(R.id.screenDirection)
         screenTransfer = findViewById(R.id.screenTransfer)
         screenTextures = findViewById(R.id.screenTextures)
+        screenBypassSs = findViewById(R.id.screenBypassSs)
         logBox = findViewById(R.id.logBox)
+        ssLogBox = findViewById(R.id.ssLogBox)
         btnPassar = findViewById(R.id.btnPassar)
         btnBypass = findViewById(R.id.btnBypass)
         tvStatus = findViewById(R.id.tvStatus)
@@ -150,7 +160,13 @@ class MainActivity : AppCompatActivity() {
         textureList = findViewById(R.id.textureList)
         btnInjectTexture = findViewById(R.id.btnInjectTexture)
         tvTextureStatus = findViewById(R.id.tvTextureStatus)
+        tvAndroidVersion = findViewById(R.id.tvAndroidVersion)
+        tvDeviceModel = findViewById(R.id.tvDeviceModel)
+        tvShizukuState = findViewById(R.id.tvShizukuState)
+        btnSaveKey = findViewById(R.id.btnSaveKey)
+        btnSsCleanup = findViewById(R.id.btnSsCleanup)
         buildTextureList()
+        etKey.setText(preferences.getString("saved_key", ""))
 
         // Pede as duas permissões assim que abre
         requestNotificationPermission()
@@ -165,6 +181,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnValidateKey.setOnClickListener { validateKeyAndOpenApp() }
+        btnSaveKey.setOnClickListener { saveKeyLocally() }
         findViewById<Button>(R.id.btnReplayMode).setOnClickListener {
             openReplayScreen()
         }
@@ -175,6 +192,10 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnMenuDirection).setOnClickListener { showMenu() }
         findViewById<Button>(R.id.btnMenuTransfer).setOnClickListener { showMenu() }
         findViewById<Button>(R.id.btnMenuTextures).setOnClickListener { showMenu() }
+        findViewById<Button>(R.id.btnMenuBypassSs).setOnClickListener { showMenu() }
+        findViewById<Button>(R.id.btnBypassSsMenu).setOnClickListener { openBypassSsScreen() }
+        findViewById<Button>(R.id.btnExitMenu).setOnClickListener { exitToLogin() }
+        findViewById<Button>(R.id.btnSsCleanup).setOnClickListener { cleanupOwnStateAndUninstall() }
         btnInjectTexture.setOnClickListener { injectSelectedTexture() }
 
         findViewById<Button>(R.id.btnMaxToNormal).setOnClickListener {
@@ -317,8 +338,21 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
+    private fun saveKeyLocally() {
+        val key = etKey.text.toString().trim()
+        if (key.isBlank()) {
+            tvKeyStatus.text = "Digite uma Key antes de salvar."
+            tvKeyStatus.setTextColor(0xFFFF5252.toInt())
+            return
+        }
+        preferences.edit().putString("saved_key", key).apply()
+        tvKeyStatus.text = "Key salva neste aparelho."
+        tvKeyStatus.setTextColor(0xFF66FF99.toInt())
+    }
+
     private fun openReplayScreen() {
         hideMenu()
+        fadeOut(screenBypassSs)
         fadeOut(screenTextures)
         fadeOut(screenTransfer)
         fadeIn(screenDirection)
@@ -327,21 +361,79 @@ class MainActivity : AppCompatActivity() {
 
     private fun openTextureScreen() {
         hideMenu()
+        fadeOut(screenBypassSs)
         fadeOut(screenDirection)
         fadeOut(screenTransfer)
         fadeIn(screenTextures)
     }
 
+    private fun openBypassSsScreen() {
+        hideMenu()
+        fadeOut(screenDirection)
+        fadeOut(screenTransfer)
+        fadeOut(screenTextures)
+        fadeIn(screenBypassSs)
+        tvAndroidVersion.text = "ANDROID\n${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})"
+        tvDeviceModel.text = "MODELO\n${Build.MANUFACTURER} ${Build.MODEL}"
+        val connected = try { Shizuku.pingBinder() } catch (_: Throwable) { false }
+        val authorized = connected && try {
+            Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
+        } catch (_: Throwable) { false }
+        tvShizukuState.text = "SHIZUKU\n${if (authorized) "CONECTADO E AUTORIZADO" else if (connected) "CONECTADO, SEM AUTORIZAÇÃO" else "DESCONECTADO"}"
+        ssLogBox.text = "[INFO] Diagnóstico do aplicativo pronto.\n[INFO] Nenhum log global do Android será alterado.\n"
+    }
+
     private fun showMenu() {
         screenMode.alpha = 0f
+        screenMode.translationX = -screenMode.width.toFloat().coerceAtLeast(300.dp().toFloat())
         screenMode.visibility = View.VISIBLE
-        screenMode.animate().alpha(1f).setDuration(180).start()
+        screenMode.animate().alpha(1f).translationX(0f).setDuration(240).start()
     }
 
     private fun hideMenu() {
         if (screenMode.visibility != View.VISIBLE) return
-        screenMode.animate().alpha(0f).setDuration(160)
+        screenMode.animate().alpha(0f).translationX(-screenMode.width.toFloat().coerceAtLeast(300.dp().toFloat())).setDuration(180)
             .withEndAction { screenMode.visibility = View.GONE }.start()
+    }
+
+    private fun exitToLogin() {
+        hideMenu()
+        currentKey = ""
+        currentSessionToken = ""
+        fadeOut(screenDirection)
+        fadeOut(screenTransfer)
+        fadeOut(screenTextures)
+        fadeOut(screenBypassSs)
+        fadeIn(screenLogin)
+        tvKeyStatus.text = "Sessão encerrada. A Key salva continua preenchida."
+        tvKeyStatus.setTextColor(0xFFAAAAAA.toInt())
+    }
+
+    private fun cleanupOwnStateAndUninstall() {
+        btnSsCleanup.isEnabled = false
+        ssLogBox.text = "[INFO] Iniciando limpeza do estado do Priv Bypass...\n"
+        ssLogBox.append("[OK] Limpando o painel de logs gerado pelo aplicativo.\n")
+        logBox.text = ""
+        ssLogBox.append("[OK] Logs internos do aplicativo removidos.\n")
+        ssLogBox.append("[INFO] Desconectando o serviço Shizuku deste aplicativo...\n")
+        try {
+            Shizuku.unbindUserService(shizukuArgs, shizukuConnection, true)
+            privilegedService = null
+            ssLogBox.append("[OK] Vínculo do serviço privilegiado encerrado.\n")
+        } catch (e: Throwable) {
+            ssLogBox.append("[INFO] Nenhum serviço privilegiado ativo: ${e.message ?: "já desconectado"}\n")
+        }
+        ssLogBox.append("[INFO] Abrindo a tela de desinstalação do próprio aplicativo...\n")
+        try {
+            val uninstall = Intent(Intent.ACTION_DELETE).apply {
+                data = Uri.parse("package:$packageName")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(uninstall)
+        } catch (e: Exception) {
+            ssLogBox.append("[ERRO] Não foi possível abrir a desinstalação: ${e.message}\n")
+            btnSsCleanup.isEnabled = true
+        }
     }
 
     private fun buildTextureList() {
