@@ -67,6 +67,25 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
+            app:cardBackgroundColor="#321010"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp">
+
+            <Button
+                android:id="@+id/btnParear"
+                android:layout_width="match_parent"
+                android:layout_height="54dp"
+                android:background="?attr/selectableItemBackground"
+                android:text="PAREAR COM CÓDIGO"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:fontFamily="sans-serif-medium" />
+        </androidx.cardview.widget.CardView>
+
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
             app:cardBackgroundColor="#FF1A1A"
             app:cardCornerRadius="16dp"
             app:cardElevation="0dp">
@@ -234,42 +253,4 @@
             android:visibility="gone" />
     </LinearLayout>
 
-    <LinearLayout
-        android:id="@+id/pairingPanel"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
-
-        <EditText
-            android:id="@+id/etPairingHost"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="IP do dispositivo (ex: 192.168.18.21)"
-            android:inputType="text"
-            android:maxLines="1" />
-
-        <EditText
-            android:id="@+id/etPairingCode"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Código de 6 dígitos"
-            android:inputType="number"
-            android:maxLength="6" />
-
-        <EditText
-            android:id="@+id/etPairingPort"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Porta de pareamento (ex: 37000)"
-            android:inputType="number"
-            android:layout_marginTop="8dp" />
-
-        <Button
-            android:id="@+id/btnParear"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Parear ADB"
-            android:layout_marginTop="8dp" />
-    </LinearLayout>
 </FrameLayout>

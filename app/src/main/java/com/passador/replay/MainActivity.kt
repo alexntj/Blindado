@@ -71,7 +71,6 @@ class MainActivity : AppCompatActivity() {
         }
 
         findViewById<Button>(R.id.btnJaConectei).setOnClickListener {
-            findViewById<View>(R.id.pairingPanel).visibility = View.GONE
             fadeOut(screenConnect)
             fadeIn(screenDirection)
             detectVersions()
@@ -95,34 +94,70 @@ class MainActivity : AppCompatActivity() {
         btnBypass.setOnClickListener { doBypass() }
 
 
-        findViewById<Button>(R.id.btnParear).setOnClickListener {
-            val pairButton = findViewById<Button>(R.id.btnParear)
-            val host = findViewById<android.widget.EditText>(R.id.etPairingHost).text.toString().trim()
-            val code = findViewById<android.widget.EditText>(R.id.etPairingCode).text.toString()
-            val port = findViewById<android.widget.EditText>(R.id.etPairingPort).text.toString().toIntOrNull() ?: 0
-
-            if (code.length == 6 && port in 1..65535) {
-                pairButton.isEnabled = false
-                log("Pareando ADB em $host:$port...")
-                Thread {
-                    val ok = adbManager.pair(host, port, code)
-                    val connected = if (ok) adbManager.connect() else false
-                    runOnUiThread {
-                        pairButton.isEnabled = true
-                        when {
-                            connected -> log("ADB pareado e conectado com sucesso.")
-                            ok -> log("Pareamento concluído, mas a conexão não foi encontrada. Mantenha a Depuração sem fio ativa e tente novamente.")
-                            else -> log("Falha no pareamento: ${adbManager.lastError}")
-                        }
-                    }
-                }.start()
-            } else {
-                log("Preencha o código com 6 dígitos e uma porta entre 1 e 65535.")
-            }
-        }
+        findViewById<Button>(R.id.btnParear).setOnClickListener { showPairingDialog() }
 
         screenConnect.alpha = 0f
         screenConnect.animate().alpha(1f).setDuration(500).start()
+    }
+
+    private fun showPairingDialog() {
+        val form = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(32, 8, 32, 0)
+        }
+        val host = android.widget.EditText(this).apply {
+            hint = "IP do dispositivo (ex: 192.168.18.21)"
+            setSingleLine(true)
+            setText(adbManager.suggestedHost())
+        }
+        val port = android.widget.EditText(this).apply {
+            hint = "Porta exibida no Android"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            setSingleLine(true)
+        }
+        val code = android.widget.EditText(this).apply {
+            hint = "Código de 6 dígitos"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            setSingleLine(true)
+            filters = arrayOf(android.text.InputFilter.LengthFilter(6))
+        }
+        form.addView(host)
+        form.addView(port)
+        form.addView(code)
+
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Parear Depuração sem fio")
+            .setMessage("Abra a opção 'Emparelhar dispositivo com código' no Android e informe os dados exibidos.")
+            .setView(form)
+            .setNegativeButton("Cancelar", null)
+            .setPositiveButton("Parear", null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val ip = host.text.toString().trim()
+                val pairingPort = port.text.toString().toIntOrNull() ?: 0
+                val pairingCode = code.text.toString().trim()
+                if (ip.isBlank() || pairingPort !in 1..65535 || pairingCode.length != 6) {
+                    android.widget.Toast.makeText(this, "Informe IP, porta e código de 6 dígitos.", android.widget.Toast.LENGTH_LONG).show()
+                    return@setOnClickListener
+                }
+                dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).isEnabled = false
+                Thread {
+                    val paired = adbManager.pair(ip, pairingPort, pairingCode)
+                    val connected = paired && adbManager.connect()
+                    runOnUiThread {
+                        dialog.dismiss()
+                        val message = when {
+                            connected -> "ADB pareado e conectado."
+                            paired -> "Pareou, mas não conectou. Ative a Depuração sem fio e tente novamente."
+                            else -> "Falha: ${adbManager.lastError}"
+                        }
+                        android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_LONG).show()
+                    }
+                }.start()
+            }
+        }
+        dialog.show()
     }
 
     private fun requestNotificationPermission() {

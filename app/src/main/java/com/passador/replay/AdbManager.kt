@@ -85,6 +85,8 @@ class AdbManager(private val context: Context) {
         shell = null
     }
 
+    fun suggestedHost(): String = localIpv4()
+
     private fun localIpv4(): String {
         try {
             val interfaces = NetworkInterface.getNetworkInterfaces()
