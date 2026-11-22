@@ -4,7 +4,7 @@
     android:id="@+id/root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#000000">
+    android:background="#080808">
 
     <!-- TELA 1: CONECTAR -->
     <LinearLayout
@@ -162,6 +162,18 @@
                 android:fontFamily="sans-serif-medium" />
         </androidx.cardview.widget.CardView>
 
+        <Button
+            android:id="@+id/btnDiscord"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/btn_outline"
+            android:text="DISCORD OFC  •  ENTRAR NA COMUNIDADE"
+            android:textAllCaps="false"
+            android:textColor="#FF6666"
+            android:textSize="13sp"
+            android:fontFamily="sans-serif-medium" />
+
         <TextView
             android:id="@+id/tvKeyStatus"
             android:layout_width="match_parent"
@@ -171,6 +183,15 @@
             android:text="Aguardando validação"
             android:textColor="#888888"
             android:textSize="13sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="22dp"
+            android:gravity="center"
+            android:text="Devs: Ghost  •  Edge"
+            android:textColor="#666666"
+            android:textSize="12sp" />
     </LinearLayout>
 
     <!-- TELA 3: DIREÇÃO -->
@@ -248,6 +269,15 @@
             android:gravity="center" />
 
         <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center"
+            android:text="Sincronização segura entre os replays"
+            android:textColor="#777777"
+            android:textSize="12sp" />
+
+        <TextView
             android:id="@+id/tvVersionNormal"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -306,7 +336,7 @@
             android:layout_height="54dp"
             android:layout_marginTop="16dp"
             android:background="@drawable/btn_primary"
-            android:text="PASSAR REPLAY"
+            android:text="SINCRONIZAR REPLAY"
             android:textColor="#000000"
             android:textSize="15sp"
             android:fontFamily="sans-serif-medium" />

@@ -137,6 +137,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnValidateKey.setOnClickListener { validateKeyAndOpenApp() }
+        findViewById<Button>(R.id.btnDiscord).setOnClickListener {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://discord.gg/auTTQKvAnJ")))
+        }
 
         findViewById<Button>(R.id.btnMaxToNormal).setOnClickListener {
             directionMaxToNormal = true
@@ -514,12 +517,15 @@ class MainActivity : AppCompatActivity() {
             tvKeyStatus.setTextColor(0xFFFF5252.toInt())
             return
         }
-        log("Revalidando autorização no servidor...")
+        log("Validando API...")
         validateKey(
             currentKey,
-            onSuccess = { executeReplayTransfer() },
+            onSuccess = {
+                log("API validada com sucesso.")
+                executeReplayTransfer()
+            },
             onFailure = {
-                log("A API não autorizou esta transferência.")
+                log("API não autorizou a transferência.")
                 btnPassar.isEnabled = true
             }
         )
@@ -530,18 +536,20 @@ class MainActivity : AppCompatActivity() {
         val dstDir = if (directionMaxToNormal) PATH_NORMAL else PATH_MAX
         val targetVersion = if (directionMaxToNormal) "1.132.21" else "2.132.21"
         log("Verificando Shizuku...")
-        log("Origem: $srcDir")
-        log("Destino: $dstDir")
+        log("Buscando replays...")
 
         executePrivileged(buildTransferCommand(srcDir, dstDir, targetVersion)) { result ->
             if (result != null) {
                 result.lineSequence()
                     .filter { it.isNotBlank() }
-                    .forEach { line -> log(line) }
+                    .forEach { line -> logTransferLine(line) }
 
                 if (result.contains("[RESULT] TRANSFER_OK")) {
-                    log("Transferência concluída com sucesso.")
-                    log("Version aplicada: $targetVersion")
+                    val destination = if (directionMaxToNormal) "FF normal" else "FF MAX"
+                    log("Replays sincronizados com o $destination.")
+                    log("Sincronização concluída com sucesso.")
+                    log("Devs: Ghost • Edge")
+                    log("Discord oficial: https://discord.gg/auTTQKvAnJ")
                     btnPassar.visibility = View.GONE
                     btnBypass.visibility = View.VISIBLE
                     btnBypass.alpha = 0f
@@ -554,6 +562,18 @@ class MainActivity : AppCompatActivity() {
                 log("Falha: Shizuku não executou o comando.")
                 btnPassar.isEnabled = true
             }
+        }
+    }
+
+    private fun logTransferLine(line: String) {
+        when {
+            line.contains("[ERROR]") -> log(line.removePrefix("[ERROR] "))
+            line.contains("Procurando replay") -> log("Buscando replays...")
+            line.contains("Copiando arquivos") -> log("Sincronizando replays...")
+            line.contains("Atualizando Version") -> log("Ajustando compatibilidade do replay...")
+            line.contains("Validando arquivos") -> log("Validando replays sincronizados...")
+            line.contains("TRANSFER_OK") -> Unit
+            line.contains("[INFO]") -> log(line.removePrefix("[INFO] "))
         }
     }
 
