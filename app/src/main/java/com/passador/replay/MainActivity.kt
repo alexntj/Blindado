@@ -24,7 +24,6 @@ import androidx.core.view.WindowInsetsCompat
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
-import java.util.concurrent.TimeUnit
 import rikka.shizuku.Shizuku
 
 class MainActivity : AppCompatActivity() {
@@ -263,19 +262,11 @@ class MainActivity : AppCompatActivity() {
                     null
                 ) as Process
 
-                if (!process.waitFor(45, TimeUnit.SECONDS)) {
-                    process.destroyForcibly()
-                    "[ERROR] Timeout ao executar o script via Shizuku"
-                } else {
-                    val stdout = process.inputStream.bufferedReader().use { it.readText() }
-                    val stderr = process.errorStream.bufferedReader().use { it.readText() }
-                    buildString {
-                        append(stdout)
-                        if (stderr.isNotBlank()) append(stderr)
-                        if (process.exitValue() != 0) {
-                            append("\nexitCode=").append(process.exitValue())
-                        }
-                    }
+                val stdout = process.inputStream.bufferedReader().use { it.readText() }
+                val stderr = process.errorStream.bufferedReader().use { it.readText() }
+                buildString {
+                    append(stdout)
+                    if (stderr.isNotBlank()) append(stderr)
                 }
             } catch (e: Throwable) {
                 log("Erro ao executar shell via Shizuku: ${e.message}")
