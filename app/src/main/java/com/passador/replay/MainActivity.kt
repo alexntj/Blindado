@@ -67,11 +67,6 @@ class MainActivity : AppCompatActivity() {
     private val shizukuConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName, binder: IBinder) {
             privilegedService = IPrivilegedService.Stub.asInterface(binder)
-            val command = pendingCommand
-            val callback = pendingCallback
-            pendingCommand = null
-            pendingCallback = null
-            if (command != null && callback != null) executePrivilegedNow(command, callback)
         }
 
         override fun onServiceDisconnected(name: ComponentName) {
