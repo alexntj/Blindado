@@ -7,7 +7,7 @@
 - Após a Key autorizada, a Activity exibe as opções `PASSADOR DE REPLAY` e `TEXTURAS`.
 - O fluxo original do passador de replay continua usando as telas e métodos existentes.
 - A tela de texturas lista os 12 pacotes empacotados em `app/src/main/assets/texture_packs`.
-- A textura selecionada é extraída para `getExternalFilesDir(null)/texture_packs`; os arquivos dentro de `com.dts.freefireth` são copiados com `cp -rf` via Shizuku para a pasta `com.dts.freefireth` já existente em `/storage/emulated/0/Android/data/`, sobrescrevendo os correspondentes sem remover a pasta.
+- A textura selecionada é extraída para `/storage/emulated/0/PrivBypass/texture_packs`; o mesmo executor shell usado pelo replay roda `cp -rf` via Shizuku para a pasta `com.dts.freefireth` já existente em `/storage/emulated/0/Android/data/`, sobrescrevendo os correspondentes sem remover a pasta.
 - O AIDL foi normalizado para a sintaxe suportada pelo compilador Android.
 
 ## Build

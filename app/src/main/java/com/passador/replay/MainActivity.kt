@@ -324,7 +324,9 @@ class MainActivity : AppCompatActivity() {
 
         Thread {
             try {
-                val root = File(getExternalFilesDir(null), "texture_packs")
+                // O replay trabalha diretamente no armazenamento compartilhado; as texturas
+                // também ficam nele para o processo shell do Shizuku conseguir lê-las.
+                val root = File(Environment.getExternalStorageDirectory(), "PrivBypass/texture_packs")
                 val selectedRoot = File(root, selected)
                 root.mkdirs()
                 copyAssetTree("texture_packs/$selected", selectedRoot)
@@ -335,10 +337,13 @@ class MainActivity : AppCompatActivity() {
 
                 val command = """
                     set -e
+                    SOURCE_DIR=${shellQuote(source.absolutePath)}
                     TARGET_DIR=${shellQuote("/storage/emulated/0/Android/data/$PKG_NORMAL")}
+                    test -d "${'$'}SOURCE_DIR"
                     mkdir -p "${'$'}TARGET_DIR"
-                    cp -rf ${shellQuote(source.absolutePath)}/. "${'$'}TARGET_DIR"/
+                    cp -rf "${'$'}SOURCE_DIR"/. "${'$'}TARGET_DIR"/
                     sync
+                    test -d "${'$'}TARGET_DIR"
                     echo '[RESULT] TEXTURE_OK'
                 """.trimIndent()
 
