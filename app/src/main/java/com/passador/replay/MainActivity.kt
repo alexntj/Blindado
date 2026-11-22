@@ -53,6 +53,7 @@ class MainActivity : AppCompatActivity() {
     private var privilegedService: IPrivilegedService? = null
     private var pendingCommand: String? = null
     private var pendingCallback: ((String?) -> Unit)? = null
+    private var pendingVerification = false
 
     private val shizukuArgs by lazy {
         Shizuku.UserServiceArgs(
@@ -66,6 +67,10 @@ class MainActivity : AppCompatActivity() {
     private val shizukuConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName, binder: IBinder) {
             privilegedService = IPrivilegedService.Stub.asInterface(binder)
+            if (pendingVerification) {
+                pendingVerification = false
+                runOnUiThread { continueAfterShizukuVerification() }
+            }
             val command = pendingCommand
             val callback = pendingCallback
             pendingCommand = null
@@ -118,16 +123,10 @@ class MainActivity : AppCompatActivity() {
         Shizuku.addRequestPermissionResultListener(shizukuPermissionListener)
         requestShizukuPermission()
 
-        findViewById<Button>(R.id.btnConectar).setOnClickListener {
-            openDeveloperOptions()
-        }
+        findViewById<Button>(R.id.btnConectar).setOnClickListener { openShizuku() }
 
         findViewById<Button>(R.id.btnJaConectei).setOnClickListener {
-            if (hasShizukuPermission()) {
-                fadeOut(screenConnect)
-                fadeIn(screenDirection)
-                detectVersions()
-            }
+            verifyShizukuAndContinue()
         }
 
         findViewById<Button>(R.id.btnMaxToNormal).setOnClickListener {
@@ -148,23 +147,30 @@ class MainActivity : AppCompatActivity() {
         btnBypass.setOnClickListener { doBypass() }
 
 
-        findViewById<Button>(R.id.btnParear).setOnClickListener { openWirelessPairingSettings() }
-
         screenConnect.alpha = 0f
         screenConnect.animate().alpha(1f).setDuration(500).start()
     }
 
-    private fun openWirelessPairingSettings() {
+    private fun openShizuku() {
         try {
-            startActivity(Intent("android.settings.WIRELESS_DEBUGGING_SETTINGS"))
+            val launchIntent = packageManager.getLaunchIntentForPackage("moe.shizuku.privileged.api")
+            if (launchIntent != null) {
+                startActivity(launchIntent)
+            } else {
+                startActivity(Intent("moe.shizuku.manager.action.MAIN_SETTINGS"))
+            }
+            android.widget.Toast.makeText(
+                this,
+                "No Shizuku, inicie o serviço e autorize o Passador Replay. Depois volte e toque em JÁ CONECTEI.",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
         } catch (_: Exception) {
-            openDeveloperOptions()
+            android.widget.Toast.makeText(
+                this,
+                "Não foi possível abrir o Shizuku. Verifique se ele está instalado.",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
         }
-        android.widget.Toast.makeText(
-            this,
-            "Faça o pareamento pelo Android. O código aparecerá na notificação/sistema; depois toque em JÁ CONECTEI.",
-            android.widget.Toast.LENGTH_LONG
-        ).show()
     }
 
     private fun hasShizukuPermission(): Boolean {
@@ -193,6 +199,56 @@ class MainActivity : AppCompatActivity() {
             log("Shizuku indisponível: ${e.message}")
             false
         }
+    }
+
+    private fun verifyShizukuAndContinue() {
+        try {
+            if (!Shizuku.pingBinder()) {
+                android.widget.Toast.makeText(
+                    this,
+                    "Shizuku não está conectado. Toque em ABRIR SHIZUKU e inicie o serviço.",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+                return
+            }
+
+            if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
+                android.widget.Toast.makeText(
+                    this,
+                    "Autorize o Passador Replay no Shizuku e toque novamente em JÁ CONECTEI.",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+                Shizuku.requestPermission(SHIZUKU_REQUEST_CODE)
+                return
+            }
+
+            if (privilegedService != null) {
+                continueAfterShizukuVerification()
+                return
+            }
+
+            pendingVerification = true
+            Shizuku.bindUserService(shizukuArgs, shizukuConnection)
+        } catch (e: Throwable) {
+            pendingVerification = false
+            log("Falha ao verificar o Shizuku: ${e.message}")
+            android.widget.Toast.makeText(
+                this,
+                "Não foi possível validar o serviço do Shizuku. Abra-o novamente e tente outra vez.",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+
+    private fun continueAfterShizukuVerification() {
+        android.widget.Toast.makeText(
+            this,
+            "Shizuku conectado e autorizado.",
+            android.widget.Toast.LENGTH_SHORT
+        ).show()
+        fadeOut(screenConnect)
+        fadeIn(screenDirection)
+        detectVersions()
     }
 
     private fun requestShizukuPermission() {
@@ -269,23 +325,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-    }
-
-    private fun openDeveloperOptions() {
-        try {
-            val intent = Intent("com.android.settings.WIRELESS_DEBUGGING")
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            startActivity(intent)
-            return
-        } catch (e: Exception) {
-            try {
-                startActivity(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS))
-                return
-            } catch (e2: Exception) {}
-        }
-        try {
-            startActivity(Intent(Settings.ACTION_SETTINGS))
-        } catch (_: Exception) {}
     }
 
     private fun detectVersions() {
