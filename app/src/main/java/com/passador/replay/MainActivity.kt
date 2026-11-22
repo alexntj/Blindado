@@ -325,9 +325,12 @@ class MainActivity : AppCompatActivity() {
                 requestMethod = "POST"
                 connectTimeout = 15000
                 readTimeout = 20000
+                instanceFollowRedirects = false
                 doOutput = true
                 setRequestProperty("Content-Type", "application/json")
                 setRequestProperty("Accept", "application/json")
+                setRequestProperty("User-Agent", "PrivReplay/$APP_VERSION")
+                setRequestProperty("Cache-Control", "no-cache")
                 if (currentSessionToken.isNotBlank()) {
                     setRequestProperty("Authorization", "Bearer $currentSessionToken")
                     setRequestProperty("X-Session-Token", currentSessionToken)
@@ -341,7 +344,21 @@ class MainActivity : AppCompatActivity() {
                 connection.errorStream ?: connection.inputStream
             }
             val responseText = stream.bufferedReader().use { it.readText() }
-            val response = JSONObject(responseText)
+            val normalizedResponse = responseText.trim()
+            if (!normalizedResponse.startsWith("{")) {
+                val contentType = connection.getHeaderField("Content-Type") ?: "desconhecido"
+                val detail = when {
+                    responseCode in 300..399 -> "redirecionamento HTTP $responseCode"
+                    contentType.contains("text/html", ignoreCase = true) -> "página HTML recebida"
+                    else -> "resposta não JSON"
+                }
+                return KeyValidation(
+                    false,
+                    "Servidor retornou $detail (HTTP $responseCode). Confira a URL da API.",
+                    currentSessionToken
+                )
+            }
+            val response = JSONObject(normalizedResponse)
             val authorized = response.optBoolean("success", false) &&
                 response.optString("status") == "active" &&
                 !response.optBoolean("killed", false) &&
