@@ -22,12 +22,10 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.passador.auth.ApiGate
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.*
-import org.json.JSONObject
 import rikka.shizuku.Shizuku
 
 class MainActivity : AppCompatActivity() {
@@ -35,7 +33,6 @@ class MainActivity : AppCompatActivity() {
     private companion object {
         const val APP_ID = "com.passador.replay"
         const val APP_VERSION_CODE = 1
-        const val VALIDATE_URL = "https://ghostcheats.de.deplexo.com/api/validate"
         const val APP_SLUG = "stirlax-modz-m1nx-oficial"
         const val APP_VERSION = "2.0"
     }
@@ -311,71 +308,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun requestKeyValidation(key: String): KeyValidation {
-        var connection: HttpURLConnection? = null
-        return try {
-            val hwid = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
-                ?: "unknown-device"
-            val body = JSONObject()
-                .put("key", key)
-                .put("hwid", hwid)
-                .put("appSlug", APP_SLUG)
-                .put("appVersion", APP_VERSION)
-            if (currentSessionToken.isNotBlank()) {
-                body.put("sessionToken", currentSessionToken)
-            }
-
-            connection = (URL(VALIDATE_URL).openConnection() as HttpURLConnection).apply {
-                requestMethod = "POST"
-                connectTimeout = 15000
-                readTimeout = 20000
-                instanceFollowRedirects = false
-                doOutput = true
-                setRequestProperty("Content-Type", "application/json")
-                setRequestProperty("Accept", "application/json")
-                setRequestProperty("User-Agent", "PrivReplay/$APP_VERSION")
-                setRequestProperty("Cache-Control", "no-cache")
-                if (currentSessionToken.isNotBlank()) {
-                    setRequestProperty("Authorization", "Bearer $currentSessionToken")
-                    setRequestProperty("X-Session-Token", currentSessionToken)
-                }
-            }
-            connection.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
-            val responseCode = connection.responseCode
-            val stream = if (responseCode in 200..299) {
-                connection.inputStream
-            } else {
-                connection.errorStream ?: connection.inputStream
-            }
-            val responseText = stream.bufferedReader().use { it.readText() }
-            val normalizedResponse = responseText.trim()
-            if (!normalizedResponse.startsWith("{")) {
-                val contentType = connection.getHeaderField("Content-Type") ?: "desconhecido"
-                val detail = when {
-                    responseCode in 300..399 -> "redirecionamento HTTP $responseCode"
-                    contentType.contains("text/html", ignoreCase = true) -> "página HTML recebida"
-                    else -> "resposta não JSON"
-                }
-                return KeyValidation(
-                    false,
-                    "Servidor retornou $detail (HTTP $responseCode). Confira a URL da API.",
-                    currentSessionToken
-                )
-            }
-            val response = JSONObject(normalizedResponse)
-            val authorized = response.optBoolean("success", false) &&
-                response.optString("status") == "active" &&
-                !response.optBoolean("killed", false) &&
-                !response.optBoolean("banned", false)
-            KeyValidation(
-                authorized = authorized,
-                message = response.optString("message"),
-                sessionToken = response.optString("sessionToken", currentSessionToken)
-            )
-        } catch (e: Exception) {
-            KeyValidation(false, "Erro de conexão com o servidor: ${e.message}", "")
-        } finally {
-            connection?.disconnect()
-        }
+        val result = ApiGate.validate(
+            this,
+            key,
+            currentSessionToken,
+            APP_SLUG,
+            APP_VERSION
+        )
+        return KeyValidation(
+            authorized = result.isAuthorized,
+            message = result.message,
+            sessionToken = result.sessionToken
+        )
     }
 
     private fun requestShizukuPermission() {
