@@ -415,14 +415,14 @@ class MainActivity : AppCompatActivity() {
         val maxOk = maxVersion != null
 
         tvVersionNormal.text = if (normalOk) {
-            "Normal: INSTALADO ($normalVersion)"
+            "FF NORMAL  •  INSTALADO\nVersão: $normalVersion  •  Pacote: $PKG_NORMAL"
         } else {
-            "Normal: NÃO INSTALADO ($PKG_NORMAL)"
+            "FF NORMAL  •  NÃO INSTALADO\nPacote esperado: $PKG_NORMAL"
         }
         tvVersionMax.text = if (maxOk) {
-            "Max: INSTALADO ($maxVersion)"
+            "FF MAX  •  INSTALADO\nVersão: $maxVersion  •  Pacote: $PKG_MAX"
         } else {
-            "Max: NÃO INSTALADO ($PKG_MAX)"
+            "FF MAX  •  NÃO INSTALADO\nPacote esperado: $PKG_MAX"
         }
 
         if (!normalOk || !maxOk) {
@@ -441,9 +441,9 @@ class MainActivity : AppCompatActivity() {
     private fun updateTransferUI() {
         val title = findViewById<TextView>(R.id.tvTransferTitle)
         title.text = if (directionMaxToNormal) {
-            "TRANSFERIR FF MAX  →  FF NORMAL"
+            "REPASS REPLAY FF MAX-FF"
         } else {
-            "TRANSFERIR FF NORMAL  →  FF MAX"
+            "REPASS REPLAY FF-FF MAX"
         }
         logBox.text = ""
         btnBypass.visibility = View.GONE

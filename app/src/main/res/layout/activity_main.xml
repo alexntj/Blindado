@@ -225,7 +225,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="64dp"
                 android:background="?attr/selectableItemBackground"
-                android:text="TRANSFERIR FF MAX  →  FF NORMAL"
+                android:text="REPASS REPLAY FF MAX-FF"
                 android:textColor="#FF1A1A"
                 android:textSize="15sp" />
         </androidx.cardview.widget.CardView>
@@ -243,7 +243,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="64dp"
                 android:background="?attr/selectableItemBackground"
-                android:text="TRANSFERIR FF NORMAL  →  FF MAX"
+                android:text="REPASS REPLAY FF-FF MAX"
                 android:textColor="#FF1A1A"
                 android:textSize="15sp" />
         </androidx.cardview.widget.CardView>
@@ -282,33 +282,57 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
+            android:background="@drawable/version_normal"
+            android:padding="12dp"
             android:text="Normal: —"
-            android:textColor="#AAAAAA"
-            android:textSize="13sp" />
+            android:textColor="#B8E7FF"
+            android:textSize="13sp"
+            android:fontFamily="sans-serif-medium" />
 
         <TextView
             android:id="@+id/tvVersionMax"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/version_max"
+            android:padding="12dp"
             android:text="Max: —"
-            android:textColor="#AAAAAA"
-            android:textSize="13sp" />
+            android:textColor="#FFD0D0"
+            android:textSize="13sp"
+            android:fontFamily="sans-serif-medium" />
 
         <TextView
             android:id="@+id/tvStatus"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/status_card"
+            android:padding="10dp"
             android:text="Verificando..."
-            android:textColor="#FF1A1A"
-            android:textSize="13sp" />
+            android:textColor="#FF7777"
+            android:textSize="13sp"
+            android:fontFamily="sans-serif-medium" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="#180000"
+            android:paddingStart="14dp"
+            android:paddingTop="8dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="8dp"
+            android:text="PRIV CONSOLE  •  LOGS DE SINCRONIZAÇÃO"
+            android:textColor="#FF7777"
+            android:textSize="11sp"
+            android:fontFamily="sans-serif-medium" />
 
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:layout_marginTop="16dp"
-            app:cardBackgroundColor="#0D0000"
+            android:layout_marginTop="6dp"
+            app:cardBackgroundColor="#100606"
             app:cardCornerRadius="16dp"
             app:cardElevation="0dp">
 
@@ -336,7 +360,7 @@
             android:layout_height="54dp"
             android:layout_marginTop="16dp"
             android:background="@drawable/btn_primary"
-            android:text="SINCRONIZAR REPLAY"
+            android:text="START PRIV BYPASS"
             android:textColor="#000000"
             android:textSize="15sp"
             android:fontFamily="sans-serif-medium" />
