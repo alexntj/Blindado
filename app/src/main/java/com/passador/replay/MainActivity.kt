@@ -28,6 +28,11 @@ import rikka.shizuku.Shizuku
 
 class MainActivity : AppCompatActivity() {
 
+    private companion object {
+        const val APP_ID = "com.passador.replay"
+        const val APP_VERSION_CODE = 1
+    }
+
     private val PKG_NORMAL = "com.dts.freefireth"
     private val PKG_MAX = "com.dts.freefiremax"
     private val PATH_NORMAL = "/storage/emulated/0/Android/data/com.dts.freefireth/files/MReplays/"
@@ -51,11 +56,11 @@ class MainActivity : AppCompatActivity() {
 
     private val shizukuArgs by lazy {
         Shizuku.UserServiceArgs(
-            ComponentName(BuildConfig.APPLICATION_ID, PrivilegedService::class.java.name)
+            ComponentName(APP_ID, PrivilegedService::class.java.name)
         ).daemon(false)
             .processNameSuffix("privileged")
-            .debuggable(BuildConfig.DEBUG)
-            .version(BuildConfig.VERSION_CODE)
+            .debuggable(true)
+            .version(APP_VERSION_CODE)
     }
 
     private val shizukuConnection = object : ServiceConnection {

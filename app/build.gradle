@@ -7,6 +7,10 @@ android {
     namespace 'com.passador.replay'
     compileSdk 34
 
+    buildFeatures {
+        aidl true
+    }
+
     defaultConfig {
         applicationId "com.passador.replay"
         minSdk 24
