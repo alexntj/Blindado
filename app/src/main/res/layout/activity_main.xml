@@ -235,10 +235,19 @@
     </LinearLayout>
 
     <LinearLayout
+        android:id="@+id/pairingPanel"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:padding="16dp">
+
+        <EditText
+            android:id="@+id/etPairingHost"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="IP do dispositivo (ex: 192.168.18.21)"
+            android:inputType="text"
+            android:maxLines="1" />
 
         <EditText
             android:id="@+id/etPairingCode"

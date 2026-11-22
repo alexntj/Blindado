@@ -71,6 +71,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         findViewById<Button>(R.id.btnJaConectei).setOnClickListener {
+            findViewById<View>(R.id.pairingPanel).visibility = View.GONE
             fadeOut(screenConnect)
             fadeIn(screenDirection)
             detectVersions()
@@ -96,21 +97,22 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.btnParear).setOnClickListener {
             val pairButton = findViewById<Button>(R.id.btnParear)
+            val host = findViewById<android.widget.EditText>(R.id.etPairingHost).text.toString().trim()
             val code = findViewById<android.widget.EditText>(R.id.etPairingCode).text.toString()
             val port = findViewById<android.widget.EditText>(R.id.etPairingPort).text.toString().toIntOrNull() ?: 0
 
             if (code.length == 6 && port in 1..65535) {
                 pairButton.isEnabled = false
-                log("Pareando ADB na porta $port...")
+                log("Pareando ADB em $host:$port...")
                 Thread {
-                    val ok = adbManager.pair("localhost", port, code)
+                    val ok = adbManager.pair(host, port, code)
                     val connected = if (ok) adbManager.connect() else false
                     runOnUiThread {
                         pairButton.isEnabled = true
                         when {
                             connected -> log("ADB pareado e conectado com sucesso.")
                             ok -> log("Pareamento concluído, mas a conexão não foi encontrada. Mantenha a Depuração sem fio ativa e tente novamente.")
-                            else -> log("Falha no pareamento. Confira se a porta é a porta de pareamento e se o código ainda está válido.")
+                            else -> log("Falha no pareamento: ${adbManager.lastError}")
                         }
                     }
                 }.start()
