@@ -478,9 +478,7 @@ class MainActivity : AppCompatActivity() {
     private fun executeReplayTransfer() {
         val srcDir = if (directionMaxToNormal) PATH_MAX else PATH_NORMAL
         val dstDir = if (directionMaxToNormal) PATH_NORMAL else PATH_MAX
-        val destinationPackage = if (directionMaxToNormal) PKG_NORMAL else PKG_MAX
-        val targetVersion = installedVersion(destinationPackage)
-            ?: if (directionMaxToNormal) "1.132.21" else "2.132.21"
+        val targetVersion = if (directionMaxToNormal) "1.132.21" else "2.132.21"
         log("Verificando Shizuku...")
         log("Buscando replays...")
 
@@ -508,14 +506,6 @@ class MainActivity : AppCompatActivity() {
                 log("Falha: Shizuku não executou o comando.")
                 btnPassar.isEnabled = true
             }
-        }
-    }
-
-    private fun installedVersion(packageName: String): String? {
-        return try {
-            packageManager.getPackageInfo(packageName, 0).versionName
-        } catch (_: PackageManager.NameNotFoundException) {
-            null
         }
     }
 
