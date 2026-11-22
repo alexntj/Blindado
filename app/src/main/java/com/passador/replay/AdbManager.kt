@@ -2,7 +2,6 @@ package com.passador.replay
 
 import android.content.Context
 import android.os.Build
-import android.util.Log
 import io.github.muntashirakon.adb.AdbPairingRequiredException
 import io.github.muntashirakon.adb.AdbStream
 import io.github.muntashirakon.adb.LocalServices
@@ -28,11 +27,9 @@ class AdbManager(private val context: Context) {
         require(host.isNotBlank() && port in 1..65535 && code.length in 4..8)
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return false
         val endpoint = if (host == "localhost" || host == "127.0.0.1") localIpv4() else host
-        Log.i(TAG, "Iniciando pareamento Wireless Debugging em $endpoint:$port")
         getManager().pair(endpoint, port, code)
-        } catch (e: Exception) {
-            lastError = e.message ?: e.javaClass.simpleName
-            Log.e(TAG, "Falha no pareamento ADB", e)
+        } catch (_: Exception) {
+            lastError = "Falha no pareamento ADB"
             false
         }
     }
@@ -49,9 +46,8 @@ class AdbManager(private val context: Context) {
             }
         }
         m.connect(5555)
-        } catch (e: Exception) {
-            lastError = e.message ?: e.javaClass.simpleName
-            Log.e(TAG, "Falha ao conectar ADB", e)
+        } catch (_: Exception) {
+            lastError = "Falha na conexão ADB"
             false
         }
     }
@@ -72,7 +68,6 @@ class AdbManager(private val context: Context) {
             }
         }
     } catch (e: Exception) {
-        Log.e(TAG, "Erro no shell ADB", e)
         null
     }
 
@@ -101,11 +96,9 @@ class AdbManager(private val context: Context) {
                     }
                 }
             }
-        } catch (e: Exception) {
-            Log.w(TAG, "Não foi possível descobrir o IP local", e)
+        } catch (_: Exception) {
         }
         return "127.0.0.1"
     }
 
-    private companion object { const val TAG = "AdbManager" }
 }

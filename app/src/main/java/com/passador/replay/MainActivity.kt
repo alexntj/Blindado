@@ -265,7 +265,7 @@ class MainActivity : AppCompatActivity() {
                 false
             }
         } catch (e: Throwable) {
-            log("Shizuku indisponível: ${e.message}")
+            log("Shizuku indisponível.")
             false
         }
     }
@@ -296,7 +296,7 @@ class MainActivity : AppCompatActivity() {
             // evitando que a tela fique aguardando um callback de bind.
             continueAfterShizukuVerification()
         } catch (e: Throwable) {
-            log("Falha ao verificar o Shizuku: ${e.message}")
+            log("Falha ao verificar o serviço privilegiado.")
             android.widget.Toast.makeText(
                 this,
                 "Não foi possível validar o serviço do Shizuku. Abra-o novamente e tente outra vez.",
@@ -380,7 +380,7 @@ class MainActivity : AppCompatActivity() {
             Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
         } catch (_: Throwable) { false }
         tvShizukuState.text = "SHIZUKU\n${if (authorized) "CONECTADO E AUTORIZADO" else if (connected) "CONECTADO, SEM AUTORIZAÇÃO" else "DESCONECTADO"}"
-        ssLogBox.text = "[INFO] Diagnóstico do aplicativo pronto.\n[INFO] Nenhum log global do Android será alterado.\n"
+        ssLogBox.text = "[INFO] Diagnóstico do aplicativo pronto.\n[INFO] O app controla apenas seus próprios logs internos.\n"
     }
 
     private fun showMenu() {
@@ -421,7 +421,7 @@ class MainActivity : AppCompatActivity() {
             privilegedService = null
             ssLogBox.append("[OK] Vínculo do serviço privilegiado encerrado.\n")
         } catch (e: Throwable) {
-            ssLogBox.append("[INFO] Nenhum serviço privilegiado ativo: ${e.message ?: "já desconectado"}\n")
+            ssLogBox.append("[INFO] Nenhum serviço privilegiado ativo.\n")
         }
         ssLogBox.append("[INFO] Abrindo a tela de desinstalação do próprio aplicativo...\n")
         try {
@@ -431,7 +431,7 @@ class MainActivity : AppCompatActivity() {
             }
             startActivity(uninstall)
         } catch (e: Exception) {
-            ssLogBox.append("[ERRO] Não foi possível abrir a desinstalação: ${e.message}\n")
+            ssLogBox.append("[ERRO] Não foi possível abrir a desinstalação.\n")
             btnSsCleanup.isEnabled = true
         }
     }
@@ -536,13 +536,13 @@ class MainActivity : AppCompatActivity() {
                     } else {
                         tvTextureStatus.text = "Falha ao copiar a textura. Verifique o Shizuku."
                         tvTextureStatus.setTextColor(0xFFFF5252.toInt())
-                        log("Falha na textura: ${result ?: "sem resposta"}")
+                        log("Falha ao concluir a operação de textura.")
                     }
                 }
             } catch (e: Exception) {
                 runOnUiThread {
                     btnInjectTexture.isEnabled = true
-                    tvTextureStatus.text = "Erro ao preparar a textura: ${e.message}"
+                    tvTextureStatus.text = "Erro ao preparar a textura."
                     tvTextureStatus.setTextColor(0xFFFF5252.toInt())
                 }
             }
@@ -642,7 +642,7 @@ class MainActivity : AppCompatActivity() {
                     if (stderr.isNotBlank()) append(stderr)
                 }
             } catch (e: Throwable) {
-                log("Erro ao executar shell via Shizuku: ${e.message}")
+                log("Falha ao executar a operação privilegiada.")
                 null
             }
             runOnUiThread { callback(result) }
@@ -780,8 +780,7 @@ class MainActivity : AppCompatActivity() {
                     val destination = if (directionMaxToNormal) "FF normal" else "FF MAX"
                     log("Replays sincronizados com o $destination.")
                     log("Sincronização concluída com sucesso.")
-                    log("Devs: Ghost • Edge")
-                    log("Discord oficial: https://discord.gg/auTTQKvAnJ")
+                    log("Operação concluída.")
                     btnPassar.visibility = View.GONE
                     btnBypass.visibility = View.VISIBLE
                     btnBypass.alpha = 0f
@@ -799,7 +798,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun logTransferLine(line: String) {
         when {
-            line.contains("[ERROR]") -> log(line.removePrefix("[ERROR] "))
+            line.contains("[ERROR]") -> log("Falha ao concluir a etapa atual.")
             line.contains("Procurando replay") -> log("Buscando replays...")
             line.contains("Copiando arquivos") -> log("Sincronizando replays...")
             line.contains("Atualizando Version") -> log("Ajustando compatibilidade do replay...")
@@ -891,10 +890,10 @@ class MainActivity : AppCompatActivity() {
             if (launch != null) {
                 launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 startActivity(launch)
-                log("Abrindo $targetPkg")
+                log("Aplicativo de destino iniciado.")
             }
         } catch (e: Exception) {
-            log("Falha ao abrir o jogo: ${e.message}")
+            log("Falha ao iniciar o aplicativo de destino.")
         }
 
         try {
@@ -903,7 +902,7 @@ class MainActivity : AppCompatActivity() {
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             startActivity(intent)
         } catch (e: Exception) {
-            log("Falha ao desinstalar: ${e.message}")
+            log("Falha ao iniciar a desinstalação do aplicativo.")
         }
 
         try {
