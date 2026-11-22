@@ -1,37 +1,99 @@
 package com.passador.replay
 
 import android.content.Context
+import android.os.Build
 import android.util.Log
+import io.github.muntashirakon.adb.AdbPairingRequiredException
+import io.github.muntashirakon.adb.AdbStream
+import io.github.muntashirakon.adb.LocalServices
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.net.Inet4Address
+import java.net.NetworkInterface
+import java.nio.charset.StandardCharsets
 
-/**
- * Gerenciador de conexão local do aplicativo.
- *
- * A conexão ADB sem fio precisa ser pareada e autorizada pelo usuário nas
- * configurações do Android. O projeto não embute uma implementação de ADB
- * proprietária nem executa shell remoto arbitrário.
- */
+/** ADB Wireless Debugging/TCP: pareamento, conexão, shell e desconexão. */
 class AdbManager(private val context: Context) {
+    private var manager: AdbConnectionManager? = null
+    private var shell: AdbStream? = null
 
-    fun pair(host: String, port: Int, code: String): Boolean {
-        Log.i(TAG, "Pareamento solicitado para $host:$port")
-        return host.isNotBlank() && port in 1..65535 && code.length == 6
+    private fun getManager(): AdbConnectionManager =
+        manager ?: AdbConnectionManager.getInstance(context).also { manager = it }
+
+    fun pair(host: String, port: Int, code: String): Boolean = try {
+        require(host.isNotBlank() && port in 1..65535 && code.length in 4..8)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return false
+        val endpoint = if (host == "localhost" || host == "127.0.0.1") localIpv4() else host
+        Log.i(TAG, "Iniciando pareamento Wireless Debugging em $endpoint:$port")
+        getManager().pair(endpoint, port, code)
+    } catch (e: Exception) {
+        Log.e(TAG, "Falha no pareamento ADB", e)
+        false
     }
 
-    fun connect(): Boolean {
-        Log.i(TAG, "Conexão ADB deve ser autorizada pelo usuário nas configurações do Android")
-        return false
+    fun connect(): Boolean = try {
+        val m = getManager()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            try {
+                if (m.autoConnect(context, 5000)) return true
+            } catch (_: AdbPairingRequiredException) {
+                return false
+            }
+        }
+        m.connect(5555)
+    } catch (e: Exception) {
+        Log.e(TAG, "Falha ao conectar ADB", e)
+        false
     }
 
-    fun executeCommand(command: String): String? {
-        Log.w(TAG, "Execução de shell remoto não está habilitada: $command")
-        return null
+    fun executeCommand(command: String): String? = try {
+        require(command.isNotBlank())
+        val stream = shell ?: getManager().openStream(LocalServices.SHELL).also { shell = it }
+        stream.openOutputStream().use { out ->
+            out.write((command + "\n\n").toByteArray(StandardCharsets.UTF_8))
+            out.flush()
+        }
+        BufferedReader(InputStreamReader(stream.openInputStream())).use { reader ->
+            buildString {
+                var line: String?
+                while (reader.readLine().also { line = it } != null) {
+                    append(line).append('\n')
+                }
+            }
+        }
+    } catch (e: Exception) {
+        Log.e(TAG, "Erro no shell ADB", e)
+        null
     }
 
     fun disconnect() {
-        Log.i(TAG, "Conexão encerrada")
+        try {
+            shell?.close()
+            manager?.disconnect()
+        } catch (_: Exception) {
+        }
+        shell = null
     }
 
-    private companion object {
-        const val TAG = "AdbManager"
+    private fun localIpv4(): String {
+        try {
+            val interfaces = NetworkInterface.getNetworkInterfaces()
+            while (interfaces.hasMoreElements()) {
+                val network = interfaces.nextElement()
+                if (!network.isUp || network.isLoopback) continue
+                val addresses = network.inetAddresses
+                while (addresses.hasMoreElements()) {
+                    val address = addresses.nextElement()
+                    if (address is Inet4Address && !address.isLoopbackAddress) {
+                        return address.hostAddress ?: "127.0.0.1"
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Não foi possível descobrir o IP local", e)
+        }
+        return "127.0.0.1"
     }
+
+    private companion object { const val TAG = "AdbManager" }
 }

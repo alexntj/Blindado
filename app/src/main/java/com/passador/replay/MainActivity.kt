@@ -95,20 +95,27 @@ class MainActivity : AppCompatActivity() {
 
 
         findViewById<Button>(R.id.btnParear).setOnClickListener {
+            val pairButton = findViewById<Button>(R.id.btnParear)
             val code = findViewById<android.widget.EditText>(R.id.etPairingCode).text.toString()
             val port = findViewById<android.widget.EditText>(R.id.etPairingPort).text.toString().toIntOrNull() ?: 0
 
-            if (code.length == 6 && port > 0) {
-                log("Pareando ADB...")
+            if (code.length == 6 && port in 1..65535) {
+                pairButton.isEnabled = false
+                log("Pareando ADB na porta $port...")
                 Thread {
                     val ok = adbManager.pair("localhost", port, code)
+                    val connected = if (ok) adbManager.connect() else false
                     runOnUiThread {
-                        if (ok) log("Pareamento concluído!")
-                        else log("Falha no pareamento. Verifique o código e a porta.")
+                        pairButton.isEnabled = true
+                        when {
+                            connected -> log("ADB pareado e conectado com sucesso.")
+                            ok -> log("Pareamento concluído, mas a conexão não foi encontrada. Mantenha a Depuração sem fio ativa e tente novamente.")
+                            else -> log("Falha no pareamento. Confira se a porta é a porta de pareamento e se o código ainda está válido.")
+                        }
                     }
                 }.start()
             } else {
-                log("Preencha o código (6 dígitos) e a porta corretamente.")
+                log("Preencha o código com 6 dígitos e uma porta entre 1 e 65535.")
             }
         }
 
