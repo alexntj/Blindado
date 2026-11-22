@@ -53,7 +53,6 @@ class MainActivity : AppCompatActivity() {
     private var privilegedService: IPrivilegedService? = null
     private var pendingCommand: String? = null
     private var pendingCallback: ((String?) -> Unit)? = null
-    private var pendingVerification = false
 
     private val shizukuArgs by lazy {
         Shizuku.UserServiceArgs(
@@ -67,10 +66,6 @@ class MainActivity : AppCompatActivity() {
     private val shizukuConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName, binder: IBinder) {
             privilegedService = IPrivilegedService.Stub.asInterface(binder)
-            if (pendingVerification) {
-                pendingVerification = false
-                runOnUiThread { continueAfterShizukuVerification() }
-            }
             val command = pendingCommand
             val callback = pendingCallback
             pendingCommand = null
@@ -222,15 +217,11 @@ class MainActivity : AppCompatActivity() {
                 return
             }
 
-            if (privilegedService != null) {
-                continueAfterShizukuVerification()
-                return
-            }
-
-            pendingVerification = true
-            Shizuku.bindUserService(shizukuArgs, shizukuConnection)
+            // O vínculo do UserService é feito somente ao iniciar a transferência.
+            // Aqui validamos apenas o Binder do Shizuku e a autorização do aplicativo,
+            // evitando que a tela fique aguardando um callback de bind.
+            continueAfterShizukuVerification()
         } catch (e: Throwable) {
-            pendingVerification = false
             log("Falha ao verificar o Shizuku: ${e.message}")
             android.widget.Toast.makeText(
                 this,
