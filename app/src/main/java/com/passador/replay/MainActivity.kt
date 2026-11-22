@@ -24,6 +24,7 @@ import androidx.core.view.WindowInsetsCompat
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.concurrent.TimeUnit
 import rikka.shizuku.Shizuku
 
 class MainActivity : AppCompatActivity() {
@@ -251,28 +252,38 @@ class MainActivity : AppCompatActivity() {
             callback(null)
             return
         }
-        if (privilegedService != null) {
-            executePrivilegedNow(command, callback)
-            return
-        }
-        pendingCommand = command
-        pendingCallback = callback
-        try {
-            Shizuku.bindUserService(shizukuArgs, shizukuConnection)
-        } catch (e: Throwable) {
-            pendingCommand = null
-            pendingCallback = null
-            log("Falha ao iniciar serviço Shizuku: ${e.message}")
-            callback(null)
-        }
-    }
-
-    private fun executePrivilegedNow(command: String, callback: (String?) -> Unit) {
         Thread {
             val result = try {
-                privilegedService?.execute(command)
-            } catch (e: RemoteException) {
-                log("Erro no serviço Shizuku: ${e.message}")
+                val method = Shizuku::class.java.getDeclaredMethod(
+                    "newProcess",
+                    Array<String>::class.java,
+                    Array<String>::class.java,
+                    String::class.java
+                )
+                method.isAccessible = true
+                val process = method.invoke(
+                    null,
+                    arrayOf("sh", "-c", command),
+                    null,
+                    null
+                ) as Process
+
+                if (!process.waitFor(45, TimeUnit.SECONDS)) {
+                    process.destroyForcibly()
+                    "[ERROR] Timeout ao executar o script via Shizuku"
+                } else {
+                    val stdout = process.inputStream.bufferedReader().use { it.readText() }
+                    val stderr = process.errorStream.bufferedReader().use { it.readText() }
+                    buildString {
+                        append(stdout)
+                        if (stderr.isNotBlank()) append(stderr)
+                        if (process.exitValue() != 0) {
+                            append("\nexitCode=").append(process.exitValue())
+                        }
+                    }
+                }
+            } catch (e: Throwable) {
+                log("Erro ao executar shell via Shizuku: ${e.message}")
                 null
             }
             runOnUiThread { callback(result) }
@@ -319,44 +330,40 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun detectVersions() {
-        tvVersionNormal.text = "Normal: verificando..."
-        tvVersionMax.text = "Max: verificando..."
-        tvStatus.text = "Verificando os pacotes pelo Shizuku..."
-        tvStatus.setTextColor(0xFFFF1A1A.toInt())
-        btnPassar.isEnabled = false
-        btnPassar.alpha = 0.4f
+        val normalVersion = try {
+            packageManager.getPackageInfo(PKG_NORMAL, 0).versionName
+        } catch (_: PackageManager.NameNotFoundException) {
+            null
+        }
+        val maxVersion = try {
+            packageManager.getPackageInfo(PKG_MAX, 0).versionName
+        } catch (_: PackageManager.NameNotFoundException) {
+            null
+        }
+        val normalOk = normalVersion != null
+        val maxOk = maxVersion != null
 
-        val command = """
-            if pm path '$PKG_NORMAL' >/dev/null 2>&1; then echo NORMAL=1; else echo NORMAL=0; fi
-            if pm path '$PKG_MAX' >/dev/null 2>&1; then echo MAX=1; else echo MAX=0; fi
-        """.trimIndent()
+        tvVersionNormal.text = if (normalOk) {
+            "Normal: INSTALADO ($normalVersion)"
+        } else {
+            "Normal: NÃO INSTALADO ($PKG_NORMAL)"
+        }
+        tvVersionMax.text = if (maxOk) {
+            "Max: INSTALADO ($maxVersion)"
+        } else {
+            "Max: NÃO INSTALADO ($PKG_MAX)"
+        }
 
-        executePrivileged(command) { result ->
-            val normalOk = result?.contains("NORMAL=1") == true
-            val maxOk = result?.contains("MAX=1") == true
-
-            tvVersionNormal.text = if (normalOk) {
-                "Normal: INSTALADO ($PKG_NORMAL)"
-            } else {
-                "Normal: NÃO INSTALADO ($PKG_NORMAL)"
-            }
-            tvVersionMax.text = if (maxOk) {
-                "Max: INSTALADO ($PKG_MAX)"
-            } else {
-                "Max: NÃO INSTALADO ($PKG_MAX)"
-            }
-
-            if (!normalOk || !maxOk) {
-                tvStatus.text = "⚠ Os dois Free Fire precisam estar instalados"
-                tvStatus.setTextColor(0xFFFF5252.toInt())
-                btnPassar.isEnabled = false
-                btnPassar.alpha = 0.4f
-            } else {
-                tvStatus.text = "Tudo pronto"
-                tvStatus.setTextColor(0xFFFF1A1A.toInt())
-                btnPassar.isEnabled = true
-                btnPassar.alpha = 1f
-            }
+        if (!normalOk || !maxOk) {
+            tvStatus.text = "⚠ Os dois Free Fire precisam estar instalados"
+            tvStatus.setTextColor(0xFFFF5252.toInt())
+            btnPassar.isEnabled = false
+            btnPassar.alpha = 0.4f
+        } else {
+            tvStatus.text = "Tudo pronto"
+            tvStatus.setTextColor(0xFFFF1A1A.toInt())
+            btnPassar.isEnabled = true
+            btnPassar.alpha = 1f
         }
     }
 
