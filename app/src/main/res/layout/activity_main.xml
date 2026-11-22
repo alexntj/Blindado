@@ -6,7 +6,6 @@
     android:layout_height="match_parent"
     android:background="#080808">
 
-    <!-- TELA 1: CONECTAR -->
     <LinearLayout
         android:id="@+id/screenConnect"
         android:layout_width="match_parent"
@@ -14,76 +13,17 @@
         android:gravity="center"
         android:orientation="vertical"
         android:padding="24dp">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="PRIV BYPASS"
-            android:textColor="#FF1A1A"
-            android:textSize="13sp"
-            android:letterSpacing="0.18"
-            android:fontFamily="sans-serif-medium" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="Preparar acesso"
-            android:textColor="#FFFFFF"
-            android:textSize="24sp"
-            android:fontFamily="sans-serif-medium" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:background="#1A0000"
-            android:padding="16dp"
-            android:text="COMO CONECTAR:\n\n1. Toque em “ABRIR SHIZUKU”\n2. Inicie o serviço, se necessário\n3. Autorize o Priv Bypass no Shizuku\n4. Volte e toque em “JÁ CONECTEI”\n5. Depois valide sua Key para acessar o aplicativo"
-            android:textColor="#FFCCCC"
-            android:textSize="13sp"
-            android:lineSpacingExtra="3dp" />
-
-        <androidx.cardview.widget.CardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
-            app:cardBackgroundColor="#1A0000"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="0dp">
-
-            <Button
-                android:id="@+id/btnConectar"
-                android:layout_width="match_parent"
-                android:layout_height="54dp"
-                android:background="?attr/selectableItemBackground"
-                android:text="ABRIR SHIZUKU"
-                android:textColor="#FF1A1A"
-                android:textSize="14sp"
-                android:fontFamily="sans-serif-medium" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="PRIV BYPASS" android:textColor="#FF1A1A" android:textSize="13sp" android:letterSpacing="0.18" android:fontFamily="sans-serif-medium" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Preparar acesso" android:textColor="#FFFFFF" android:textSize="24sp" android:fontFamily="sans-serif-medium" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:background="#1A0000" android:padding="16dp" android:text="COMO CONECTAR:\n\n1. Toque em “ABRIR SHIZUKU”\n2. Inicie o serviço, se necessário\n3. Autorize o Priv Bypass no Shizuku\n4. Volte e toque em “JÁ CONECTEI”\n5. Depois valide sua Key para acessar o aplicativo" android:textColor="#FFCCCC" android:textSize="13sp" android:lineSpacingExtra="3dp" />
+        <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="28dp" app:cardBackgroundColor="#1A0000" app:cardCornerRadius="16dp" app:cardElevation="0dp">
+            <Button android:id="@+id/btnConectar" android:layout_width="match_parent" android:layout_height="54dp" android:background="?attr/selectableItemBackground" android:text="ABRIR SHIZUKU" android:textColor="#FF1A1A" android:textSize="14sp" android:fontFamily="sans-serif-medium" />
         </androidx.cardview.widget.CardView>
-
-        <androidx.cardview.widget.CardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            app:cardBackgroundColor="#FF1A1A"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="0dp">
-
-            <Button
-                android:id="@+id/btnJaConectei"
-                android:layout_width="match_parent"
-                android:layout_height="54dp"
-                android:background="?attr/selectableItemBackground"
-                android:text="JÁ CONECTEI"
-                android:textColor="#000000"
-                android:textSize="15sp"
-                android:fontFamily="sans-serif-medium" />
+        <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" app:cardBackgroundColor="#FF1A1A" app:cardCornerRadius="16dp" app:cardElevation="0dp">
+            <Button android:id="@+id/btnJaConectei" android:layout_width="match_parent" android:layout_height="54dp" android:background="?attr/selectableItemBackground" android:text="JÁ CONECTEI" android:textColor="#000000" android:textSize="15sp" android:fontFamily="sans-serif-medium" />
         </androidx.cardview.widget.CardView>
     </LinearLayout>
 
-    <!-- TELA 2: LOGIN DA KEY -->
     <LinearLayout
         android:id="@+id/screenLogin"
         android:layout_width="match_parent"
@@ -92,109 +32,58 @@
         android:orientation="vertical"
         android:padding="28dp"
         android:visibility="gone">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="PRIV BYPASS"
-            android:textColor="#FF1A1A"
-            android:textSize="13sp"
-            android:letterSpacing="0.18"
-            android:fontFamily="sans-serif-medium" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:text="Acesso autorizado"
-            android:textColor="#FFFFFF"
-            android:textSize="25sp"
-            android:fontFamily="sans-serif-medium" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:gravity="center"
-            android:text="Insira sua Key para liberar o sistema de transferência."
-            android:textColor="#AAAAAA"
-            android:textSize="14sp" />
-
-        <androidx.cardview.widget.CardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
-            app:cardBackgroundColor="#1A0000"
-            app:cardCornerRadius="18dp"
-            app:cardElevation="0dp">
-
-            <EditText
-                android:id="@+id/etKey"
-                android:layout_width="match_parent"
-                android:layout_height="58dp"
-                android:background="@android:color/transparent"
-                android:hint="Digite sua Key"
-                android:inputType="textVisiblePassword"
-                android:paddingStart="18dp"
-                android:paddingEnd="18dp"
-                android:singleLine="true"
-                android:textColor="#FFFFFF"
-                android:textColorHint="#777777"
-                android:textSize="15sp" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="PRIV BYPASS" android:textColor="#FF1A1A" android:textSize="13sp" android:letterSpacing="0.18" android:fontFamily="sans-serif-medium" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="Acesso autorizado" android:textColor="#FFFFFF" android:textSize="25sp" android:fontFamily="sans-serif-medium" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:gravity="center" android:text="Insira sua Key para liberar o sistema." android:textColor="#AAAAAA" android:textSize="14sp" />
+        <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="28dp" app:cardBackgroundColor="#1A0000" app:cardCornerRadius="18dp" app:cardElevation="0dp">
+            <EditText android:id="@+id/etKey" android:layout_width="match_parent" android:layout_height="58dp" android:background="@android:color/transparent" android:hint="Digite sua Key" android:inputType="textVisiblePassword" android:paddingStart="18dp" android:paddingEnd="18dp" android:singleLine="true" android:textColor="#FFFFFF" android:textColorHint="#777777" android:textSize="15sp" />
         </androidx.cardview.widget.CardView>
-
-        <androidx.cardview.widget.CardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            app:cardBackgroundColor="#FF1A1A"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="0dp">
-
-            <Button
-                android:id="@+id/btnValidateKey"
-                android:layout_width="match_parent"
-                android:layout_height="54dp"
-                android:background="?attr/selectableItemBackground"
-                android:text="VALIDAR KEY"
-                android:textColor="#000000"
-                android:textSize="15sp"
-                android:fontFamily="sans-serif-medium" />
+        <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" app:cardBackgroundColor="#FF1A1A" app:cardCornerRadius="16dp" app:cardElevation="0dp">
+            <Button android:id="@+id/btnValidateKey" android:layout_width="match_parent" android:layout_height="54dp" android:background="?attr/selectableItemBackground" android:text="VALIDAR KEY" android:textColor="#000000" android:textSize="15sp" android:fontFamily="sans-serif-medium" />
         </androidx.cardview.widget.CardView>
-
-        <Button
-            android:id="@+id/btnDiscord"
-            android:layout_width="match_parent"
-            android:layout_height="50dp"
-            android:layout_marginTop="12dp"
-            android:background="@drawable/btn_outline"
-            android:text="DISCORD OFC"
-            android:textAllCaps="false"
-            android:textColor="#FF6666"
-            android:textSize="13sp"
-            android:fontFamily="sans-serif-medium" />
-
-        <TextView
-            android:id="@+id/tvKeyStatus"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:gravity="center"
-            android:text="Aguardando validação"
-            android:textColor="#888888"
-            android:textSize="13sp" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="22dp"
-            android:gravity="center"
-            android:text="Devs: Ghost  •  Edge"
-            android:textColor="#666666"
-            android:textSize="12sp" />
+        <TextView android:id="@+id/tvKeyStatus" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:gravity="center" android:text="Aguardando validação" android:textColor="#888888" android:textSize="13sp" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="22dp" android:gravity="center" android:text="Devs: Ghost  •  Edge" android:textColor="#666666" android:textSize="12sp" />
     </LinearLayout>
 
-    <!-- TELA 3: DIREÇÃO -->
+    <LinearLayout
+        android:id="@+id/screenMode"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="28dp"
+        android:visibility="gone">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Escolha uma função" android:textColor="#FFFFFF" android:textSize="25sp" android:fontFamily="sans-serif-medium" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:gravity="center" android:text="Acesso validado. Selecione o módulo que deseja usar." android:textColor="#AAAAAA" android:textSize="14sp" />
+        <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="32dp" app:cardBackgroundColor="#1A0000" app:cardCornerRadius="18dp" app:cardElevation="0dp">
+            <Button android:id="@+id/btnReplayMode" android:layout_width="match_parent" android:layout_height="72dp" android:background="?attr/selectableItemBackground" android:text="PASSADOR DE REPLAY" android:textColor="#FF7777" android:textSize="16sp" android:fontFamily="sans-serif-medium" />
+        </androidx.cardview.widget.CardView>
+        <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" app:cardBackgroundColor="#FF1A1A" app:cardCornerRadius="18dp" app:cardElevation="0dp">
+            <Button android:id="@+id/btnTextureMode" android:layout_width="match_parent" android:layout_height="72dp" android:background="?attr/selectableItemBackground" android:text="TEXTURAS" android:textColor="#000000" android:textSize="16sp" android:fontFamily="sans-serif-medium" />
+        </androidx.cardview.widget.CardView>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/screenTextures"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="24dp"
+        android:visibility="gone">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="TEXTURAS" android:textColor="#FF1A1A" android:textSize="13sp" android:letterSpacing="0.18" android:fontFamily="sans-serif-medium" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Escolha seu pacote" android:textColor="#FFFFFF" android:textSize="24sp" android:fontFamily="sans-serif-medium" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:gravity="center" android:text="A textura selecionada será copiada para o Free Fire NORMAL usando Shizuku." android:textColor="#AAAAAA" android:textSize="13sp" />
+        <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="28dp" app:cardBackgroundColor="#1A0000" app:cardCornerRadius="16dp" app:cardElevation="0dp">
+            <Spinner android:id="@+id/spinnerTexture" android:layout_width="match_parent" android:layout_height="58dp" android:paddingStart="14dp" android:paddingEnd="14dp" android:popupBackground="#202020" />
+        </androidx.cardview.widget.CardView>
+        <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" app:cardBackgroundColor="#FF1A1A" app:cardCornerRadius="16dp" app:cardElevation="0dp">
+            <Button android:id="@+id/btnInjectTexture" android:layout_width="match_parent" android:layout_height="58dp" android:background="?attr/selectableItemBackground" android:text="INJETAR TEXTURA" android:textColor="#000000" android:textSize="15sp" android:fontFamily="sans-serif-medium" />
+        </androidx.cardview.widget.CardView>
+        <TextView android:id="@+id/tvTextureStatus" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="18dp" android:gravity="center" android:text="Aguardando seleção" android:textColor="#888888" android:textSize="13sp" />
+        <Button android:id="@+id/btnTextureBack" android:layout_width="match_parent" android:layout_height="50dp" android:layout_marginTop="12dp" android:background="@drawable/btn_outline" android:text="VOLTAR" android:textColor="#FF6666" android:textSize="13sp" />
+    </LinearLayout>
+
     <LinearLayout
         android:id="@+id/screenDirection"
         android:layout_width="match_parent"
@@ -203,53 +92,15 @@
         android:orientation="vertical"
         android:padding="28dp"
         android:visibility="gone">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Escolha a direção"
-            android:textColor="#FFFFFF"
-            android:textSize="22sp"
-            android:fontFamily="sans-serif-medium" />
-
-        <androidx.cardview.widget.CardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="36dp"
-            app:cardBackgroundColor="#1A0000"
-            app:cardCornerRadius="18dp"
-            app:cardElevation="0dp">
-
-            <Button
-                android:id="@+id/btnMaxToNormal"
-                android:layout_width="match_parent"
-                android:layout_height="64dp"
-                android:background="?attr/selectableItemBackground"
-                android:text="BYPASS FF MAX PARA FF"
-                android:textColor="#FF1A1A"
-                android:textSize="15sp" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Escolha a direção" android:textColor="#FFFFFF" android:textSize="22sp" android:fontFamily="sans-serif-medium" />
+        <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="36dp" app:cardBackgroundColor="#1A0000" app:cardCornerRadius="18dp" app:cardElevation="0dp">
+            <Button android:id="@+id/btnMaxToNormal" android:layout_width="match_parent" android:layout_height="64dp" android:background="?attr/selectableItemBackground" android:text="BYPASS FF MAX PARA FF" android:textColor="#FF1A1A" android:textSize="15sp" />
         </androidx.cardview.widget.CardView>
-
-        <androidx.cardview.widget.CardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            app:cardBackgroundColor="#1A0000"
-            app:cardCornerRadius="18dp"
-            app:cardElevation="0dp">
-
-            <Button
-                android:id="@+id/btnNormalToMax"
-                android:layout_width="match_parent"
-                android:layout_height="64dp"
-                android:background="?attr/selectableItemBackground"
-                android:text="BYPASS FF PARA FF MAX"
-                android:textColor="#FF1A1A"
-                android:textSize="15sp" />
+        <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" app:cardBackgroundColor="#1A0000" app:cardCornerRadius="18dp" app:cardElevation="0dp">
+            <Button android:id="@+id/btnNormalToMax" android:layout_width="match_parent" android:layout_height="64dp" android:background="?attr/selectableItemBackground" android:text="BYPASS FF PARA FF MAX" android:textColor="#FF1A1A" android:textSize="15sp" />
         </androidx.cardview.widget.CardView>
     </LinearLayout>
 
-    <!-- TELA 4: TRANSFERÊNCIA -->
     <LinearLayout
         android:id="@+id/screenTransfer"
         android:layout_width="match_parent"
@@ -257,125 +108,18 @@
         android:orientation="vertical"
         android:padding="20dp"
         android:visibility="gone">
-
-        <TextView
-            android:id="@+id/tvTransferTitle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="FF MAX  →  FF NORMAL"
-            android:textColor="#FFFFFF"
-            android:textSize="18sp"
-            android:fontFamily="sans-serif-medium"
-            android:gravity="center" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:gravity="center"
-            android:text="Sincronização segura entre os replays"
-            android:textColor="#777777"
-            android:textSize="12sp" />
-
-        <TextView
-            android:id="@+id/tvVersionNormal"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:background="@drawable/version_normal"
-            android:padding="12dp"
-            android:text="Normal: —"
-            android:textColor="#B8E7FF"
-            android:textSize="13sp"
-            android:fontFamily="sans-serif-medium" />
-
-        <TextView
-            android:id="@+id/tvVersionMax"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:background="@drawable/version_max"
-            android:padding="12dp"
-            android:text="Max: —"
-            android:textColor="#FFD0D0"
-            android:textSize="13sp"
-            android:fontFamily="sans-serif-medium" />
-
-        <TextView
-            android:id="@+id/tvStatus"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:background="@drawable/status_card"
-            android:padding="10dp"
-            android:text="Verificando..."
-            android:textColor="#FF7777"
-            android:textSize="13sp"
-            android:fontFamily="sans-serif-medium" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:background="#180000"
-            android:paddingStart="14dp"
-            android:paddingTop="8dp"
-            android:paddingEnd="14dp"
-            android:paddingBottom="8dp"
-            android:text="PRIV CONSOLE  •  LOGS DE SINCRONIZAÇÃO"
-            android:textColor="#FF7777"
-            android:textSize="11sp"
-            android:fontFamily="sans-serif-medium" />
-
-        <androidx.cardview.widget.CardView
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:layout_marginTop="6dp"
-            app:cardBackgroundColor="#100606"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="0dp">
-
-            <ScrollView
-                android:id="@+id/logScroll"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:padding="14dp"
-                android:fillViewport="true">
-
-                <TextView
-                    android:id="@+id/logBox"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textColor="#CCCCCC"
-                    android:textSize="12sp"
-                    android:fontFamily="monospace"
-                    android:lineSpacingExtra="2dp" />
+        <TextView android:id="@+id/tvTransferTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="FF MAX  →  FF NORMAL" android:textColor="#FFFFFF" android:textSize="18sp" android:fontFamily="sans-serif-medium" android:gravity="center" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:gravity="center" android:text="Sincronização segura entre os replays" android:textColor="#777777" android:textSize="12sp" />
+        <TextView android:id="@+id/tvVersionNormal" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:background="@drawable/version_normal" android:padding="12dp" android:text="Normal: —" android:textColor="#B8E7FF" android:textSize="13sp" android:fontFamily="sans-serif-medium" />
+        <TextView android:id="@+id/tvVersionMax" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:background="@drawable/version_max" android:padding="12dp" android:text="Max: —" android:textColor="#FFD0D0" android:textSize="13sp" android:fontFamily="sans-serif-medium" />
+        <TextView android:id="@+id/tvStatus" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:background="@drawable/status_card" android:padding="10dp" android:text="Verificando..." android:textColor="#FF7777" android:textSize="13sp" android:fontFamily="sans-serif-medium" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:background="#180000" android:padding="10dp" android:text="PRIV CONSOLE  •  LOGS DE SINCRONIZAÇÃO" android:textColor="#FF7777" android:textSize="11sp" android:fontFamily="sans-serif-medium" />
+        <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:layout_marginTop="6dp" app:cardBackgroundColor="#100606" app:cardCornerRadius="16dp" app:cardElevation="0dp">
+            <ScrollView android:id="@+id/logScroll" android:layout_width="match_parent" android:layout_height="match_parent" android:padding="14dp" android:fillViewport="true">
+                <TextView android:id="@+id/logBox" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#CCCCCC" android:textSize="12sp" android:fontFamily="monospace" android:lineSpacingExtra="2dp" />
             </ScrollView>
         </androidx.cardview.widget.CardView>
-
-        <Button
-            android:id="@+id/btnPassar"
-            android:layout_width="match_parent"
-            android:layout_height="54dp"
-            android:layout_marginTop="16dp"
-            android:background="@drawable/btn_primary"
-            android:text="START PRIV BYPASS"
-            android:textColor="#000000"
-            android:textSize="15sp"
-            android:fontFamily="sans-serif-medium" />
-
-        <Button
-            android:id="@+id/btnBypass"
-            android:layout_width="match_parent"
-            android:layout_height="54dp"
-            android:layout_marginTop="16dp"
-            android:background="@drawable/btn_danger"
-            android:text="BYPASS"
-            android:textColor="#FFFFFF"
-            android:textSize="15sp"
-            android:fontFamily="sans-serif-medium"
-            android:visibility="gone" />
+        <Button android:id="@+id/btnPassar" android:layout_width="match_parent" android:layout_height="54dp" android:layout_marginTop="16dp" android:background="@drawable/btn_primary" android:text="START PRIV BYPASS" android:textColor="#000000" android:textSize="15sp" android:fontFamily="sans-serif-medium" />
+        <Button android:id="@+id/btnBypass" android:layout_width="match_parent" android:layout_height="54dp" android:layout_marginTop="16dp" android:background="@drawable/btn_danger" android:text="BYPASS" android:textColor="#FFFFFF" android:textSize="15sp" android:fontFamily="sans-serif-medium" android:visibility="gone" />
     </LinearLayout>
-
 </FrameLayout>

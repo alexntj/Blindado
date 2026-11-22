@@ -16,6 +16,7 @@ import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ScrollView
+import android.widget.Spinner
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -45,8 +46,10 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var screenConnect: View
     private lateinit var screenLogin: View
+    private lateinit var screenMode: View
     private lateinit var screenDirection: View
     private lateinit var screenTransfer: View
+    private lateinit var screenTextures: View
     private lateinit var logBox: TextView
     private lateinit var btnPassar: Button
     private lateinit var btnBypass: Button
@@ -56,6 +59,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var etKey: EditText
     private lateinit var btnValidateKey: Button
     private lateinit var tvKeyStatus: TextView
+    private lateinit var spinnerTexture: Spinner
+    private lateinit var btnInjectTexture: Button
+    private lateinit var tvTextureStatus: TextView
     private val adbManager by lazy { AdbManager(this) }
     private val SHIZUKU_REQUEST_CODE = 2001
     private var privilegedService: IPrivilegedService? = null
@@ -96,6 +102,11 @@ class MainActivity : AppCompatActivity() {
     private var directionMaxToNormal = true
     private var currentKey = ""
     private var currentSessionToken = ""
+    private val texturePacks = arrayOf(
+        "1 BAKUGO", "2 BAKI", "3 GOKU BLACK", "4 GOKU SUPER SAYAJIN 3",
+        "5 LUFFY", "6 LUFFY GEAR SIX", "7 PANTERA COR DE ROSA", "8 GOJO",
+        "9 SONIC", "10 CHAMA", "11 FINN", "12 CJ"
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -109,8 +120,10 @@ class MainActivity : AppCompatActivity() {
 
         screenConnect = findViewById(R.id.screenConnect)
         screenLogin = findViewById(R.id.screenLogin)
+        screenMode = findViewById(R.id.screenMode)
         screenDirection = findViewById(R.id.screenDirection)
         screenTransfer = findViewById(R.id.screenTransfer)
+        screenTextures = findViewById(R.id.screenTextures)
         logBox = findViewById(R.id.logBox)
         btnPassar = findViewById(R.id.btnPassar)
         btnBypass = findViewById(R.id.btnBypass)
@@ -120,6 +133,15 @@ class MainActivity : AppCompatActivity() {
         etKey = findViewById(R.id.etKey)
         btnValidateKey = findViewById(R.id.btnValidateKey)
         tvKeyStatus = findViewById(R.id.tvKeyStatus)
+        spinnerTexture = findViewById(R.id.spinnerTexture)
+        btnInjectTexture = findViewById(R.id.btnInjectTexture)
+        tvTextureStatus = findViewById(R.id.tvTextureStatus)
+
+        spinnerTexture.adapter = android.widget.ArrayAdapter(
+            this,
+            android.R.layout.simple_spinner_dropdown_item,
+            texturePacks
+        )
 
         // Pede as duas permissões assim que abre
         requestNotificationPermission()
@@ -134,9 +156,20 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnValidateKey.setOnClickListener { validateKeyAndOpenApp() }
-        findViewById<Button>(R.id.btnDiscord).setOnClickListener {
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://discord.gg/auTTQKvAnJ")))
+        findViewById<Button>(R.id.btnReplayMode).setOnClickListener {
+            fadeOut(screenMode)
+            fadeIn(screenDirection)
+            detectVersions()
         }
+        findViewById<Button>(R.id.btnTextureMode).setOnClickListener {
+            fadeOut(screenMode)
+            fadeIn(screenTextures)
+        }
+        findViewById<Button>(R.id.btnTextureBack).setOnClickListener {
+            fadeOut(screenTextures)
+            fadeIn(screenMode)
+        }
+        btnInjectTexture.setOnClickListener { injectSelectedTexture() }
 
         findViewById<Button>(R.id.btnMaxToNormal).setOnClickListener {
             directionMaxToNormal = true
@@ -272,11 +305,79 @@ class MainActivity : AppCompatActivity() {
             key,
             onSuccess = {
                 fadeOut(screenLogin)
-                fadeIn(screenDirection)
-                detectVersions()
+                fadeIn(screenMode)
             }
         )
     }
+
+    private fun injectSelectedTexture() {
+        if (currentKey.isBlank()) {
+            tvTextureStatus.text = "Valide sua Key antes de injetar uma textura."
+            tvTextureStatus.setTextColor(0xFFFF5252.toInt())
+            return
+        }
+
+        val selected = texturePacks[spinnerTexture.selectedItemPosition]
+        btnInjectTexture.isEnabled = false
+        tvTextureStatus.text = "Preparando $selected..."
+        tvTextureStatus.setTextColor(0xFFBBBBBB.toInt())
+
+        Thread {
+            try {
+                val root = File(getExternalFilesDir(null), "texture_packs")
+                val selectedRoot = File(root, selected)
+                root.mkdirs()
+                copyAssetTree("texture_packs/$selected", selectedRoot)
+                val source = File(selectedRoot, PKG_NORMAL)
+                if (!source.isDirectory) {
+                    throw IllegalStateException("Pasta do Free Fire não encontrada no asset")
+                }
+
+                val command = """
+                    set -e
+                    mkdir -p ${shellQuote("/storage/emulated/0/Android/data")}
+                    cp -R ${shellQuote(source.absolutePath)} ${shellQuote("/storage/emulated/0/Android/data/")}
+                    echo '[RESULT] TEXTURE_OK'
+                """.trimIndent()
+
+                runOnUiThread { tvTextureStatus.text = "Copiando $selected via Shizuku..." }
+                executePrivileged(command) { result ->
+                    btnInjectTexture.isEnabled = true
+                    if (result != null && result.contains("[RESULT] TEXTURE_OK")) {
+                        tvTextureStatus.text = "$selected aplicado com sucesso no FF NORMAL."
+                        tvTextureStatus.setTextColor(0xFF66FF99.toInt())
+                    } else {
+                        tvTextureStatus.text = "Falha ao copiar a textura. Verifique o Shizuku."
+                        tvTextureStatus.setTextColor(0xFFFF5252.toInt())
+                        log("Falha na textura: ${result ?: "sem resposta"}")
+                    }
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    btnInjectTexture.isEnabled = true
+                    tvTextureStatus.text = "Erro ao preparar a textura: ${e.message}"
+                    tvTextureStatus.setTextColor(0xFFFF5252.toInt())
+                }
+            }
+        }.start()
+    }
+
+    private fun copyAssetTree(assetPath: String, destination: File) {
+        val children = assets.list(assetPath) ?: emptyArray()
+        if (children.isEmpty()) {
+            destination.parentFile?.mkdirs()
+            assets.open(assetPath).use { input ->
+                destination.outputStream().use { output -> input.copyTo(output) }
+            }
+            return
+        }
+        destination.mkdirs()
+        children.forEach { child ->
+            copyAssetTree("$assetPath/$child", File(destination, child))
+        }
+    }
+
+    private fun shellQuote(value: String): String = "'${value.replace("'", "'\\''")}'"
 
     private fun validateKey(
         key: String,
