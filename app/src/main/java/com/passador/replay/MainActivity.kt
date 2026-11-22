@@ -5,6 +5,8 @@ import android.content.ComponentName
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -15,8 +17,9 @@ import android.provider.Settings
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.ScrollView
-import android.widget.Spinner
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -59,7 +62,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var etKey: EditText
     private lateinit var btnValidateKey: Button
     private lateinit var tvKeyStatus: TextView
-    private lateinit var spinnerTexture: Spinner
+    private lateinit var textureList: LinearLayout
     private lateinit var btnInjectTexture: Button
     private lateinit var tvTextureStatus: TextView
     private val adbManager by lazy { AdbManager(this) }
@@ -102,11 +105,22 @@ class MainActivity : AppCompatActivity() {
     private var directionMaxToNormal = true
     private var currentKey = ""
     private var currentSessionToken = ""
+    private data class TexturePack(val displayName: String, val folderName: String, val thumbnail: Int)
     private val texturePacks = arrayOf(
-        "1 BAKUGO", "2 BAKI", "3 GOKU BLACK", "4 GOKU SUPER SAYAJIN 3",
-        "5 LUFFY", "6 LUFFY GEAR SIX", "7 PANTERA COR DE ROSA", "8 GOJO",
-        "9 SONIC", "10 CHAMA", "11 FINN", "12 CJ"
+        TexturePack("BAKI", "2 BAKI", R.drawable.thumb_baki),
+        TexturePack("BAKUGO", "1 BAKUGO", R.drawable.thumb_bakugo),
+        TexturePack("GOKU BLACK", "3 GOKU BLACK", R.drawable.thumb_goku_black),
+        TexturePack("SUPER SAYAJIN 3", "4 GOKU SUPER SAYAJIN 3", R.drawable.thumb_ssj3),
+        TexturePack("LUFFY", "5 LUFFY", R.drawable.thumb_luffy),
+        TexturePack("LUFFY GEAR 6", "6 LUFFY GEAR SIX", R.drawable.thumb_luffy_gear6),
+        TexturePack("PANTERA COR DE ROSA", "7 PANTERA COR DE ROSA", R.drawable.thumb_pantera),
+        TexturePack("GOJO", "8 GOJO", R.drawable.thumb_gojo),
+        TexturePack("CHAMA", "10 CHAMA", R.drawable.thumb_chama),
+        TexturePack("FINN", "11 FINN", R.drawable.thumb_finn),
+        TexturePack("SONIC", "9 SONIC", R.drawable.thumb_sonic),
+        TexturePack("CJ", "12 CJ", R.drawable.thumb_cj)
     )
+    private var selectedTextureIndex = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -133,15 +147,10 @@ class MainActivity : AppCompatActivity() {
         etKey = findViewById(R.id.etKey)
         btnValidateKey = findViewById(R.id.btnValidateKey)
         tvKeyStatus = findViewById(R.id.tvKeyStatus)
-        spinnerTexture = findViewById(R.id.spinnerTexture)
+        textureList = findViewById(R.id.textureList)
         btnInjectTexture = findViewById(R.id.btnInjectTexture)
         tvTextureStatus = findViewById(R.id.tvTextureStatus)
-
-        spinnerTexture.adapter = android.widget.ArrayAdapter(
-            this,
-            android.R.layout.simple_spinner_dropdown_item,
-            texturePacks
-        )
+        buildTextureList()
 
         // Pede as duas permissões assim que abre
         requestNotificationPermission()
@@ -157,18 +166,15 @@ class MainActivity : AppCompatActivity() {
 
         btnValidateKey.setOnClickListener { validateKeyAndOpenApp() }
         findViewById<Button>(R.id.btnReplayMode).setOnClickListener {
-            fadeOut(screenMode)
-            fadeIn(screenDirection)
-            detectVersions()
+            openReplayScreen()
         }
         findViewById<Button>(R.id.btnTextureMode).setOnClickListener {
-            fadeOut(screenMode)
-            fadeIn(screenTextures)
+            openTextureScreen()
         }
-        findViewById<Button>(R.id.btnTextureBack).setOnClickListener {
-            fadeOut(screenTextures)
-            fadeIn(screenMode)
-        }
+        findViewById<Button>(R.id.btnCloseMenu).setOnClickListener { hideMenu() }
+        findViewById<Button>(R.id.btnMenuDirection).setOnClickListener { showMenu() }
+        findViewById<Button>(R.id.btnMenuTransfer).setOnClickListener { showMenu() }
+        findViewById<Button>(R.id.btnMenuTextures).setOnClickListener { showMenu() }
         btnInjectTexture.setOnClickListener { injectSelectedTexture() }
 
         findViewById<Button>(R.id.btnMaxToNormal).setOnClickListener {
@@ -305,10 +311,92 @@ class MainActivity : AppCompatActivity() {
             key,
             onSuccess = {
                 fadeOut(screenLogin)
-                fadeIn(screenMode)
+                fadeIn(screenDirection)
+                detectVersions()
             }
         )
     }
+
+    private fun openReplayScreen() {
+        hideMenu()
+        fadeOut(screenTextures)
+        fadeOut(screenTransfer)
+        fadeIn(screenDirection)
+        detectVersions()
+    }
+
+    private fun openTextureScreen() {
+        hideMenu()
+        fadeOut(screenDirection)
+        fadeOut(screenTransfer)
+        fadeIn(screenTextures)
+    }
+
+    private fun showMenu() {
+        screenMode.alpha = 0f
+        screenMode.visibility = View.VISIBLE
+        screenMode.animate().alpha(1f).setDuration(180).start()
+    }
+
+    private fun hideMenu() {
+        if (screenMode.visibility != View.VISIBLE) return
+        screenMode.animate().alpha(0f).setDuration(160)
+            .withEndAction { screenMode.visibility = View.GONE }.start()
+    }
+
+    private fun buildTextureList() {
+        textureList.removeAllViews()
+        texturePacks.forEachIndexed { index, pack ->
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = android.view.Gravity.CENTER_VERTICAL
+                setPadding(10.dp(), 8.dp(), 12.dp(), 8.dp())
+            }
+            val image = ImageView(this).apply {
+                setImageResource(pack.thumbnail)
+                scaleType = ImageView.ScaleType.CENTER_CROP
+            }
+            row.addView(image, LinearLayout.LayoutParams(58.dp(), 58.dp()))
+            val name = TextView(this).apply {
+                text = pack.displayName
+                textSize = 15f
+                setTextColor(Color.WHITE)
+                typeface = android.graphics.Typeface.DEFAULT_BOLD
+                setPadding(14.dp(), 0, 0, 0)
+            }
+            row.addView(name, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            val number = TextView(this).apply {
+                text = String.format("%02d", index + 1)
+                textSize = 12f
+                setTextColor(0xFFFF7777.toInt())
+            }
+            row.addView(number)
+            row.setOnClickListener {
+                selectedTextureIndex = index
+                updateTextureSelection()
+            }
+            textureList.addView(row, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { setMargins(0, 0, 0, 8.dp()) })
+        }
+        updateTextureSelection()
+    }
+
+    private fun updateTextureSelection() {
+        for (i in 0 until textureList.childCount) {
+            val selected = i == selectedTextureIndex
+            textureList.getChildAt(i).background = GradientDrawable().apply {
+                cornerRadius = 18.dp().toFloat()
+                setColor(if (selected) 0xFF3A1115.toInt() else 0xFF160909.toInt())
+                setStroke(if (selected) 2 else 1, if (selected) 0xFFFF3D55.toInt() else 0xFF321316.toInt())
+            }
+        }
+        tvTextureStatus.text = "Selecionado: ${texturePacks[selectedTextureIndex].displayName}"
+        tvTextureStatus.setTextColor(0xFFBBBBBB.toInt())
+    }
+
+    private fun Int.dp(): Int = (this * resources.displayMetrics.density).toInt()
 
     private fun injectSelectedTexture() {
         if (currentKey.isBlank()) {
@@ -317,9 +405,9 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        val selected = texturePacks[spinnerTexture.selectedItemPosition]
+        val selected = texturePacks[selectedTextureIndex]
         btnInjectTexture.isEnabled = false
-        tvTextureStatus.text = "Preparando $selected..."
+        tvTextureStatus.text = "Preparando ${selected.displayName}..."
         tvTextureStatus.setTextColor(0xFFBBBBBB.toInt())
 
         Thread {
@@ -327,9 +415,9 @@ class MainActivity : AppCompatActivity() {
                 // O replay trabalha diretamente no armazenamento compartilhado; as texturas
                 // também ficam nele para o processo shell do Shizuku conseguir lê-las.
                 val root = File(Environment.getExternalStorageDirectory(), "PrivBypass/texture_packs")
-                val selectedRoot = File(root, selected)
+                val selectedRoot = File(root, selected.folderName)
                 root.mkdirs()
-                copyAssetTree("texture_packs/$selected", selectedRoot)
+                copyAssetTree("texture_packs/${selected.folderName}", selectedRoot)
                 val source = File(selectedRoot, PKG_NORMAL)
                 if (!source.isDirectory) {
                     throw IllegalStateException("Pasta do Free Fire não encontrada no asset")
@@ -347,11 +435,11 @@ class MainActivity : AppCompatActivity() {
                     echo '[RESULT] TEXTURE_OK'
                 """.trimIndent()
 
-                runOnUiThread { tvTextureStatus.text = "Copiando $selected via Shizuku..." }
+                runOnUiThread { tvTextureStatus.text = "Copiando ${selected.displayName} via Shizuku..." }
                 executePrivileged(command) { result ->
                     btnInjectTexture.isEnabled = true
                     if (result != null && result.contains("[RESULT] TEXTURE_OK")) {
-                        tvTextureStatus.text = "$selected aplicado com sucesso no FF NORMAL."
+                        tvTextureStatus.text = "${selected.displayName} aplicado com sucesso no FF NORMAL."
                         tvTextureStatus.setTextColor(0xFF66FF99.toInt())
                     } else {
                         tvTextureStatus.text = "Falha ao copiar a textura. Verifique o Shizuku."
