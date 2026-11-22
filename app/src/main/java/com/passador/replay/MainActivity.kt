@@ -435,7 +435,7 @@ class MainActivity : AppCompatActivity() {
             BIN_NAME=${'$'}(basename "${'$'}RECENT_BIN")
             JSON_NAME=${'$'}(basename "${'$'}RECENT_JSON")
             JSON_FILE="${'$'}DST_DIR/${'$'}JSON_NAME"
-            JSON_TMP="${'$'}JSON_FILE.tmp.${'$'}${'$}"
+            JSON_TMP="${'$'}JSON_FILE.tmp"
 
             echo "[PROGRESS] Criando pasta de destino"
             mkdir -p "${'$'}DST_DIR" || fail "Não foi possível criar a pasta de destino"
