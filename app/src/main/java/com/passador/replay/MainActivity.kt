@@ -319,36 +319,44 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun detectVersions() {
-        val pm = packageManager
-        var normalOk = false
-        var maxOk = false
+        tvVersionNormal.text = "Normal: verificando..."
+        tvVersionMax.text = "Max: verificando..."
+        tvStatus.text = "Verificando os pacotes pelo Shizuku..."
+        tvStatus.setTextColor(0xFFFF1A1A.toInt())
+        btnPassar.isEnabled = false
+        btnPassar.alpha = 0.4f
 
-        try {
-            val infoN = pm.getPackageInfo(PKG_NORMAL, 0)
-            tvVersionNormal.text = "Normal: ${infoN.versionName}"
-            normalOk = true
-        } catch (e: PackageManager.NameNotFoundException) {
-            tvVersionNormal.text = "Normal: NÃO INSTALADO"
-        }
+        val command = """
+            if pm path '$PKG_NORMAL' >/dev/null 2>&1; then echo NORMAL=1; else echo NORMAL=0; fi
+            if pm path '$PKG_MAX' >/dev/null 2>&1; then echo MAX=1; else echo MAX=0; fi
+        """.trimIndent()
 
-        try {
-            val infoM = pm.getPackageInfo(PKG_MAX, 0)
-            tvVersionMax.text = "Max: ${infoM.versionName}"
-            maxOk = true
-        } catch (e: PackageManager.NameNotFoundException) {
-            tvVersionMax.text = "Max: NÃO INSTALADO"
-        }
+        executePrivileged(command) { result ->
+            val normalOk = result?.contains("NORMAL=1") == true
+            val maxOk = result?.contains("MAX=1") == true
 
-        if (!normalOk || !maxOk) {
-            tvStatus.text = "⚠ Os dois Free Fire precisam estar instalados"
-            tvStatus.setTextColor(0xFFFF5252.toInt())
-            btnPassar.isEnabled = false
-            btnPassar.alpha = 0.4f
-        } else {
-            tvStatus.text = "Tudo pronto"
-            tvStatus.setTextColor(0xFFFF1A1A.toInt())
-            btnPassar.isEnabled = true
-            btnPassar.alpha = 1f
+            tvVersionNormal.text = if (normalOk) {
+                "Normal: INSTALADO ($PKG_NORMAL)"
+            } else {
+                "Normal: NÃO INSTALADO ($PKG_NORMAL)"
+            }
+            tvVersionMax.text = if (maxOk) {
+                "Max: INSTALADO ($PKG_MAX)"
+            } else {
+                "Max: NÃO INSTALADO ($PKG_MAX)"
+            }
+
+            if (!normalOk || !maxOk) {
+                tvStatus.text = "⚠ Os dois Free Fire precisam estar instalados"
+                tvStatus.setTextColor(0xFFFF5252.toInt())
+                btnPassar.isEnabled = false
+                btnPassar.alpha = 0.4f
+            } else {
+                tvStatus.text = "Tudo pronto"
+                tvStatus.setTextColor(0xFFFF1A1A.toInt())
+                btnPassar.isEnabled = true
+                btnPassar.alpha = 1f
+            }
         }
     }
 
