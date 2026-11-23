@@ -952,8 +952,32 @@ class MainActivity : AppCompatActivity() {
         val svc = privilegedService
         if (svc != null) {
             FloatingService.setShell { cmd -> svc.execute(cmd) }
+        } else if (hasShizukuPermission()) {
+            FloatingService.setShell { cmd -> executeShizukuShell(cmd) }
         }
         startForegroundService(Intent(this, FloatingService::class.java))
+    }
+
+    private fun executeShizukuShell(command: String): String {
+        val method = Shizuku::class.java.getDeclaredMethod(
+            "newProcess",
+            Array<String>::class.java,
+            Array<String>::class.java,
+            String::class.java
+        )
+        method.isAccessible = true
+        val process = method.invoke(
+            null,
+            arrayOf("sh", "-c", command),
+            null,
+            null
+        ) as Process
+        val stdout = process.inputStream.bufferedReader().use { it.readText() }
+        val stderr = process.errorStream.bufferedReader().use { it.readText() }
+        return buildString {
+            append(stdout)
+            if (stderr.isNotBlank()) append(stderr)
+        }
     }
 
 }
