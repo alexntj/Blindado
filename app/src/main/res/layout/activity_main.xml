@@ -12,11 +12,6 @@
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:background="#1A0000" android:padding="16dp" android:text="COMO CONECTAR:\n\n1. Toque em “ABRIR SHIZUKU”\n2. Inicie o serviço, se necessário\n3. Autorize o Priv Bypass no Shizuku\n4. Volte e toque em “JÁ CONECTEI”\n5. Depois valide sua Key" android:textColor="#FFCCCC" android:textSize="13sp" android:lineSpacingExtra="3dp" />
         <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="28dp" app:cardBackgroundColor="#1A0000" app:cardCornerRadius="16dp" app:cardElevation="0dp"><Button android:id="@+id/btnConectar" android:layout_width="match_parent" android:layout_height="54dp" android:background="?attr/selectableItemBackground" android:text="ABRIR SHIZUKU" android:textColor="#FF1A1A" android:textSize="14sp" android:fontFamily="sans-serif-medium" /></androidx.cardview.widget.CardView>
         <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" app:cardBackgroundColor="#FF1A1A" app:cardCornerRadius="16dp" app:cardElevation="0dp"><Button android:id="@+id/btnJaConectei" android:layout_width="match_parent" android:layout_height="54dp" android:background="?attr/selectableItemBackground" android:text="JÁ CONECTEI" android:textColor="#000000" android:textSize="15sp" android:fontFamily="sans-serif-medium" /></androidx.cardview.widget.CardView>
-        <Button
-        android:id="@+id/btnFloating"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Abrir flutuante" />
 </LinearLayout>
 
     <LinearLayout android:id="@+id/screenLogin" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical" android:padding="28dp" android:visibility="gone">
@@ -80,4 +75,15 @@
         <Button android:id="@+id/btnExitMenu" android:layout_width="match_parent" android:layout_height="52dp" android:background="@drawable/btn_danger" android:text="SAIR" android:textColor="#FFFFFF" android:textSize="13sp" />
         <Button android:id="@+id/btnCloseMenu" android:layout_width="match_parent" android:layout_height="46dp" android:layout_marginTop="8dp" android:background="@android:color/transparent" android:text="FECHAR" android:textColor="#777777" android:textSize="12sp" />
     </LinearLayout>
+
+    <Button
+        android:id="@+id/btnFloating"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="16dp"
+        android:backgroundTint="#FF1A1A"
+        android:textColor="#FFFFFF"
+        android:text="Abrir flutuante"
+        android:elevation="8dp" />
 </FrameLayout>

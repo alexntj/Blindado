@@ -949,9 +949,9 @@ class MainActivity : AppCompatActivity() {
                 Uri.parse("package:$packageName")))
             return
         }
-        FloatingService.setShell { cmd ->
-            privilegedService?.execute(cmd)
-                ?: throw IllegalStateException("Shizuku nao conectado")
+        val svc = privilegedService
+        if (svc != null) {
+            FloatingService.setShell { cmd -> svc.execute(cmd) }
         }
         startForegroundService(Intent(this, FloatingService::class.java))
     }
