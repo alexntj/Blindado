@@ -21,6 +21,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -76,6 +77,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnReplayMode: Button
     private lateinit var btnTextureMode: Button
     private lateinit var btnBypassSsMenu: Button
+    private lateinit var btnFloatingMenu: Button
     private lateinit var btnOpenFreeFire: Button
     private val adbManager by lazy { AdbManager(this) }
     private val SHIZUKU_REQUEST_CODE = 2001
@@ -174,6 +176,7 @@ class MainActivity : AppCompatActivity() {
         btnReplayMode = findViewById(R.id.btnReplayMode)
         btnTextureMode = findViewById(R.id.btnTextureMode)
         btnBypassSsMenu = findViewById(R.id.btnBypassSsMenu)
+        btnFloatingMenu = findViewById(R.id.btnFloatingMenu)
         btnOpenFreeFire = findViewById(R.id.btnOpenFreeFire)
         buildTextureList()
         etKey.setText(preferences.getString("saved_key", ""))
@@ -200,10 +203,12 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnMenuTextures).setOnClickListener { showMenu() }
         findViewById<Button>(R.id.btnMenuBypassSs).setOnClickListener { showMenu() }
         btnBypassSsMenu.setOnClickListener { openBypassSsScreen() }
+        btnFloatingMenu.setOnClickListener { activateFloatingMode() }
         findViewById<Button>(R.id.btnExitMenu).setOnClickListener { exitToLogin() }
         findViewById<Button>(R.id.btnSsCleanup).setOnClickListener { cleanupOwnStateAndUninstall() }
         btnOpenFreeFire.setOnClickListener { openFreeFireNormal() }
         menuScrim.setOnClickListener { hideMenu() }
+        handleFloatingNavigation(intent)
         btnInjectTexture.setOnClickListener { injectSelectedTexture() }
 
         findViewById<Button>(R.id.btnMaxToNormal).setOnClickListener {
@@ -438,6 +443,45 @@ class MainActivity : AppCompatActivity() {
             tvTextureStatus.text = "Não foi possível abrir o Free Fire normal."
             tvTextureStatus.setTextColor(0xFFFF5252.toInt())
         }
+    }
+
+    private fun activateFloatingMode() {
+        hideMenu()
+        if (!Settings.canDrawOverlays(this)) {
+            tvKeyStatus.text = "Ative a permissão de sobreposição para usar o flutuante."
+            tvKeyStatus.setTextColor(0xFFFFB74D.toInt())
+            try {
+                startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+            } catch (_: Exception) {
+                startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION))
+            }
+            return
+        }
+        val serviceIntent = Intent(this, FloatingService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(serviceIntent) else startService(serviceIntent)
+        Toast.makeText(this, "Flutuante ativado.", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun handleFloatingNavigation(sourceIntent: Intent?) {
+        val target = sourceIntent?.getStringExtra(FloatingService.EXTRA_SCREEN) ?: return
+        if (currentKey.isBlank()) {
+            tvKeyStatus.text = "Valide sua Key para usar o flutuante."
+            tvKeyStatus.setTextColor(0xFFFFB74D.toInt())
+            fadeOut(screenConnect)
+            fadeIn(screenLogin)
+            return
+        }
+        when (target) {
+            "replay" -> openReplayScreen()
+            "textures" -> openTextureScreen()
+            "bypass" -> openBypassSsScreen()
+        }
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleFloatingNavigation(intent)
     }
 
     private fun exitToLogin() {
