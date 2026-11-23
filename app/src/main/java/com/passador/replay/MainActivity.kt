@@ -16,7 +16,6 @@ import android.os.RemoteException
 import android.provider.Settings
 import android.view.View
 import android.widget.Button
-import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -56,6 +55,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var screenTransfer: View
     private lateinit var screenTextures: View
     private lateinit var screenBypassSs: View
+    private lateinit var menuBackdrop: View
     private lateinit var logBox: TextView
     private lateinit var ssLogBox: TextView
     private lateinit var btnPassar: Button
@@ -65,7 +65,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvVersionMax: TextView
     private lateinit var etKey: EditText
     private lateinit var btnValidateKey: Button
-    private lateinit var cbSaveKey: CheckBox
     private lateinit var tvKeyStatus: TextView
     private lateinit var textureList: LinearLayout
     private lateinit var btnInjectTexture: Button
@@ -142,6 +141,8 @@ class MainActivity : AppCompatActivity() {
             insets
         }
 
+        menuBackdrop = findViewById(R.id.menuBackdrop)
+        menuBackdrop.setOnClickListener { hideMenu() }
         screenConnect = findViewById(R.id.screenConnect)
         screenLogin = findViewById(R.id.screenLogin)
         screenMode = findViewById(R.id.screenMode)
@@ -158,7 +159,6 @@ class MainActivity : AppCompatActivity() {
         tvVersionMax = findViewById(R.id.tvVersionMax)
         etKey = findViewById(R.id.etKey)
         btnValidateKey = findViewById(R.id.btnValidateKey)
-        cbSaveKey = findViewById(R.id.cbSaveKey)
         tvKeyStatus = findViewById(R.id.tvKeyStatus)
         textureList = findViewById(R.id.textureList)
         btnInjectTexture = findViewById(R.id.btnInjectTexture)
@@ -168,8 +168,7 @@ class MainActivity : AppCompatActivity() {
         tvShizukuState = findViewById(R.id.tvShizukuState)
         btnSsCleanup = findViewById(R.id.btnSsCleanup)
         buildTextureList()
-        cbSaveKey.isChecked = preferences.getBoolean("save_key_enabled", false)
-        if (cbSaveKey.isChecked) etKey.setText(preferences.getString("saved_key", ""))
+        etKey.setText(preferences.getString("saved_key", ""))
 
         // Pede as duas permissões assim que abre
         requestNotificationPermission()
@@ -184,6 +183,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnValidateKey.setOnClickListener { validateKeyAndOpenApp() }
+        findViewById<Button>(R.id.btnSaveKey).setOnClickListener { saveKeyLocally() }
         findViewById<Button>(R.id.btnOfficialGroup).setOnClickListener {
             try {
                 startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(OFFICIAL_GROUP_URL)))
@@ -340,22 +340,23 @@ class MainActivity : AppCompatActivity() {
         validateKey(
             key,
             onSuccess = {
-                if (cbSaveKey.isChecked) {
-                    preferences.edit()
-                        .putString("saved_key", key)
-                        .putBoolean("save_key_enabled", true)
-                        .apply()
-                } else {
-                    preferences.edit()
-                        .remove("saved_key")
-                        .putBoolean("save_key_enabled", false)
-                        .apply()
-                }
                 fadeOut(screenLogin)
                 fadeIn(screenDirection)
                 detectVersions()
             }
         )
+    }
+
+    private fun saveKeyLocally() {
+        val key = etKey.text.toString().trim()
+        if (key.isBlank()) {
+            tvKeyStatus.text = "Digite uma Key antes de salvar."
+            tvKeyStatus.setTextColor(0xFFFF5252.toInt())
+            return
+        }
+        preferences.edit().putString("saved_key", key).apply()
+        tvKeyStatus.text = "Key salva neste aparelho."
+        tvKeyStatus.setTextColor(0xFF66FF99.toInt())
     }
 
     private fun openReplayScreen() {
@@ -395,6 +396,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showMenu() {
+        menuBackdrop.visibility = View.VISIBLE
         screenMode.alpha = 0f
         screenMode.translationX = -screenMode.width.toFloat().coerceAtLeast(300.dp().toFloat())
         screenMode.visibility = View.VISIBLE
@@ -404,17 +406,23 @@ class MainActivity : AppCompatActivity() {
     private fun setActiveMenuItem(activeId: Int) {
         val ids = intArrayOf(R.id.btnReplayMode, R.id.btnTextureMode, R.id.btnBypassSsMenu)
         ids.forEach { id ->
-            findViewById<Button>(id).background = ContextCompat.getDrawable(
+            val button = findViewById<Button>(id)
+            val active = id == activeId
+            button.background = ContextCompat.getDrawable(
                 this,
-                if (id == activeId) R.drawable.btn_primary else R.drawable.btn_outline
+                if (active) R.drawable.btn_primary else R.drawable.btn_outline
             )
+            button.setTextColor(if (active) 0xFF000000.toInt() else 0xFFFF7777.toInt())
         }
     }
 
     private fun hideMenu() {
         if (screenMode.visibility != View.VISIBLE) return
         screenMode.animate().alpha(0f).translationX(-screenMode.width.toFloat().coerceAtLeast(300.dp().toFloat())).setDuration(180)
-            .withEndAction { screenMode.visibility = View.GONE }.start()
+            .withEndAction {
+                screenMode.visibility = View.GONE
+                menuBackdrop.visibility = View.GONE
+            }.start()
     }
 
     private fun exitToLogin() {

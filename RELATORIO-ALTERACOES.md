@@ -43,18 +43,7 @@ A função `setActiveMenuItem()` centraliza essa regra para impedir que mais de 
 
 ## 4. Persistência da Key
 
-O botão grande separado `SALVAR KEY` foi removido e substituído por um `CheckBox` compacto:
-
-```text
-[ ] Salvar Key
-```
-
-Comportamento implementado:
-
-- Checkbox marcado: após uma validação autorizada, a Key é salva em `SharedPreferences`.
-- Checkbox desmarcado: após a validação, a Key salva anteriormente é removida.
-- Ao iniciar o app, a Key só é carregada automaticamente se `save_key_enabled` estiver marcado.
-- A preferência `saved_key` armazena o valor e `save_key_enabled` controla a autorização de persistência.
+A tela de login foi reorganizada verticalmente para seguir a sequência solicitada: campo de Key, botão `SALVAR KEY`, botão `LOGIN`, botão `GRUPO OFC` e status da validação. O botão `SALVAR KEY` grava a Key em `SharedPreferences`, e a Key salva é restaurada quando o app é aberto novamente.
 
 ## 5. Grupo oficial
 
@@ -64,7 +53,13 @@ Foi adicionado o botão `GRUPO OFC` abaixo da área de login. Ao tocar, o aplica
 
 Caso não exista um aplicativo capaz de abrir o link, o usuário recebe uma mensagem de erro sem derrubar a Activity.
 
-## 6. Validações técnicas
+## 6. Menu lateral e seleção visual
+
+Os botões de três traços foram posicionados no lado esquerdo dos cabeçalhos. A aba lateral permanece ancorada à esquerda. Uma camada transparente (`menuBackdrop`) cobre a área externa enquanto a aba está aberta; tocar nessa área fecha o menu com a mesma animação de saída.
+
+O item ativo do menu recebe fundo vermelho e texto preto. Os itens inativos retornam ao fundo escuro de contorno e texto vermelho. Isso evita que o texto de `TEXTURAS` desapareça ao trocar para outra seção.
+
+## 7. Validações técnicas
 
 Foram verificadas:
 
