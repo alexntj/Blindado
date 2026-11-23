@@ -39,7 +39,7 @@ A remoção foi feita sem alterar as telas de login, autorização da Key, conex
 
 ## 3. Menu lateral
 
-O botão de três traços permanece no lado direito dos cabeçalhos das telas. A aba lateral continua abrindo pelo lado esquerdo, pois o `screenMode` usa `layout_gravity="start"` e animação horizontal a partir de `translationX` negativo.
+Os botões de três traços foram fixados como primeiro elemento dos cabeçalhos de `Passador de replay`, transferência, `Texturas` e `Bypass SS`, ficando visualmente no lado esquerdo. A aba lateral continua abrindo pelo lado esquerdo, pois o `screenMode` usa `layout_gravity="start"` e animação horizontal a partir de `translationX` negativo.
 
 Foi adicionada seleção visual exclusiva:
 
