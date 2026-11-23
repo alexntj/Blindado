@@ -2,11 +2,20 @@
 
 ## 1. Identificação da versão
 
-- Projeto: **Priv Bypass / Blindado**
+- Projeto: **Cap cut / Blindado**
 - Branch: `main`
 - Alterações de remoção do flutuante: commit `dbf43de`
 - Ajustes de interface desta versão: commit posterior ao ajuste da interface
 - Build oficial realizado pelo GitHub Actions após a validação do código.
+
+## 1.1. Renomeação e package
+
+- Nome visual do aplicativo: `Cap cut`.
+- `namespace`: `com.Privvideo.app`.
+- `applicationId`: `com.Privvideo.app`.
+- Declarações de package, fontes Java/Kotlin, AIDL, manifesto e regras ProGuard do módulo `app` foram alinhadas ao novo package.
+- `libauth` e `libadb` permaneceram nos packages próprios para preservar as dependências e a lógica existente.
+- A migração não altera o fluxo de autorização Shizuku nem a transferência de replay.
 
 ## 2. Remoção do menu flutuante
 

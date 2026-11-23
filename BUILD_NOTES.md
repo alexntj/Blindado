@@ -1,8 +1,8 @@
-# Priv Bypass — implementação de texturas
+# Cap cut — implementação de texturas
 
 ## Alterações
 
-- Mantido o `applicationId` original: `com.passador.replay`.
+- `applicationId` e `namespace`: `com.Privvideo.app`.
 - Mantida a validação REIMOD em `https://ghostcheats.de.deplexo.com/api/validate`.
 - Após a Key autorizada, a Activity exibe as opções `PASSADOR DE REPLAY` e `TEXTURAS`.
 - O fluxo original do passador de replay continua usando as telas e métodos existentes.

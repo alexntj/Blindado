@@ -1,4 +1,4 @@
-package com.passador.replay
+package com.Privvideo.app
 
 import android.Manifest
 import android.content.ComponentName
@@ -35,7 +35,7 @@ import rikka.shizuku.Shizuku
 class MainActivity : AppCompatActivity() {
 
     private companion object {
-        const val APP_ID = "com.passador.replay"
+        const val APP_ID = "com.Privvideo.app"
         const val APP_VERSION_CODE = 1
         const val APP_SLUG = "stirlax-modz-m1nx-oficial"
         const val APP_VERSION = "2.0"
@@ -239,7 +239,7 @@ class MainActivity : AppCompatActivity() {
             }
             android.widget.Toast.makeText(
                 this,
-                "No Shizuku, inicie o serviço e autorize o Priv Bypass. Depois volte e toque em JÁ CONECTEI.",
+                "No Shizuku, inicie o serviço e autorize o Cap cut. Depois volte e toque em JÁ CONECTEI.",
                 android.widget.Toast.LENGTH_LONG
             ).show()
         } catch (_: Exception) {
@@ -293,7 +293,7 @@ class MainActivity : AppCompatActivity() {
             if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
                 android.widget.Toast.makeText(
                     this,
-                    "Autorize o Priv Bypass no Shizuku e toque novamente em JÁ CONECTEI.",
+                    "Autorize o Cap cut no Shizuku e toque novamente em JÁ CONECTEI.",
                     android.widget.Toast.LENGTH_LONG
                 ).show()
                 Shizuku.requestPermission(SHIZUKU_REQUEST_CODE)
@@ -440,7 +440,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun cleanupOwnStateAndUninstall() {
         btnSsCleanup.isEnabled = false
-        ssLogBox.text = "[INFO] Iniciando limpeza do estado do Priv Bypass...\n"
+        ssLogBox.text = "[INFO] Iniciando limpeza do estado do Cap cut...\n"
         ssLogBox.append("[OK] Limpando o painel de logs gerado pelo aplicativo.\n")
         logBox.text = ""
         ssLogBox.append("[OK] Logs internos do aplicativo removidos.\n")

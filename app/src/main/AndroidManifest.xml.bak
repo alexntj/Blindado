@@ -17,7 +17,7 @@
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
-        android:label="Priv Bypass"
+        android:label="Cap cut"
         android:theme="@style/Theme.Passador">
 
         <activity
