@@ -16,6 +16,7 @@ import android.os.RemoteException
 import android.provider.Settings
 import android.view.View
 import android.widget.Button
+import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -39,6 +40,7 @@ class MainActivity : AppCompatActivity() {
         const val APP_VERSION_CODE = 1
         const val APP_SLUG = "stirlax-modz-m1nx-oficial"
         const val APP_VERSION = "2.0"
+        const val OFFICIAL_GROUP_URL = "https://whatsapp.com/channel/0029VbCowiZGJP8MKaHW0k3k"
     }
 
     private val PKG_NORMAL = "com.dts.freefireth"
@@ -63,6 +65,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvVersionMax: TextView
     private lateinit var etKey: EditText
     private lateinit var btnValidateKey: Button
+    private lateinit var cbSaveKey: CheckBox
     private lateinit var tvKeyStatus: TextView
     private lateinit var textureList: LinearLayout
     private lateinit var btnInjectTexture: Button
@@ -70,7 +73,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvAndroidVersion: TextView
     private lateinit var tvDeviceModel: TextView
     private lateinit var tvShizukuState: TextView
-    private lateinit var btnSaveKey: Button
     private lateinit var btnSsCleanup: Button
     private val adbManager by lazy { AdbManager(this) }
     private val SHIZUKU_REQUEST_CODE = 2001
@@ -156,6 +158,7 @@ class MainActivity : AppCompatActivity() {
         tvVersionMax = findViewById(R.id.tvVersionMax)
         etKey = findViewById(R.id.etKey)
         btnValidateKey = findViewById(R.id.btnValidateKey)
+        cbSaveKey = findViewById(R.id.cbSaveKey)
         tvKeyStatus = findViewById(R.id.tvKeyStatus)
         textureList = findViewById(R.id.textureList)
         btnInjectTexture = findViewById(R.id.btnInjectTexture)
@@ -163,10 +166,10 @@ class MainActivity : AppCompatActivity() {
         tvAndroidVersion = findViewById(R.id.tvAndroidVersion)
         tvDeviceModel = findViewById(R.id.tvDeviceModel)
         tvShizukuState = findViewById(R.id.tvShizukuState)
-        btnSaveKey = findViewById(R.id.btnSaveKey)
         btnSsCleanup = findViewById(R.id.btnSsCleanup)
         buildTextureList()
-        etKey.setText(preferences.getString("saved_key", ""))
+        cbSaveKey.isChecked = preferences.getBoolean("save_key_enabled", false)
+        if (cbSaveKey.isChecked) etKey.setText(preferences.getString("saved_key", ""))
 
         // Pede as duas permissões assim que abre
         requestNotificationPermission()
@@ -181,7 +184,13 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnValidateKey.setOnClickListener { validateKeyAndOpenApp() }
-        btnSaveKey.setOnClickListener { saveKeyLocally() }
+        findViewById<Button>(R.id.btnOfficialGroup).setOnClickListener {
+            try {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(OFFICIAL_GROUP_URL)))
+            } catch (_: Exception) {
+                android.widget.Toast.makeText(this, "Não foi possível abrir o grupo oficial.", android.widget.Toast.LENGTH_LONG).show()
+            }
+        }
         findViewById<Button>(R.id.btnReplayMode).setOnClickListener {
             openReplayScreen()
         }
@@ -331,6 +340,17 @@ class MainActivity : AppCompatActivity() {
         validateKey(
             key,
             onSuccess = {
+                if (cbSaveKey.isChecked) {
+                    preferences.edit()
+                        .putString("saved_key", key)
+                        .putBoolean("save_key_enabled", true)
+                        .apply()
+                } else {
+                    preferences.edit()
+                        .remove("saved_key")
+                        .putBoolean("save_key_enabled", false)
+                        .apply()
+                }
                 fadeOut(screenLogin)
                 fadeIn(screenDirection)
                 detectVersions()
@@ -338,20 +358,9 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    private fun saveKeyLocally() {
-        val key = etKey.text.toString().trim()
-        if (key.isBlank()) {
-            tvKeyStatus.text = "Digite uma Key antes de salvar."
-            tvKeyStatus.setTextColor(0xFFFF5252.toInt())
-            return
-        }
-        preferences.edit().putString("saved_key", key).apply()
-        tvKeyStatus.text = "Key salva neste aparelho."
-        tvKeyStatus.setTextColor(0xFF66FF99.toInt())
-    }
-
     private fun openReplayScreen() {
         hideMenu()
+        setActiveMenuItem(R.id.btnReplayMode)
         fadeOut(screenBypassSs)
         fadeOut(screenTextures)
         fadeOut(screenTransfer)
@@ -361,6 +370,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun openTextureScreen() {
         hideMenu()
+        setActiveMenuItem(R.id.btnTextureMode)
         fadeOut(screenBypassSs)
         fadeOut(screenDirection)
         fadeOut(screenTransfer)
@@ -369,6 +379,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun openBypassSsScreen() {
         hideMenu()
+        setActiveMenuItem(R.id.btnBypassSsMenu)
         fadeOut(screenDirection)
         fadeOut(screenTransfer)
         fadeOut(screenTextures)
@@ -388,6 +399,16 @@ class MainActivity : AppCompatActivity() {
         screenMode.translationX = -screenMode.width.toFloat().coerceAtLeast(300.dp().toFloat())
         screenMode.visibility = View.VISIBLE
         screenMode.animate().alpha(1f).translationX(0f).setDuration(240).start()
+    }
+
+    private fun setActiveMenuItem(activeId: Int) {
+        val ids = intArrayOf(R.id.btnReplayMode, R.id.btnTextureMode, R.id.btnBypassSsMenu)
+        ids.forEach { id ->
+            findViewById<Button>(id).background = ContextCompat.getDrawable(
+                this,
+                if (id == activeId) R.drawable.btn_primary else R.drawable.btn_outline
+            )
+        }
     }
 
     private fun hideMenu() {
