@@ -55,4 +55,27 @@ public final class AssetCipher {
         }
         return key;
     }
+
+    /** Encripta um payload de texto em RMP1 (mesmo formato do auth.txt). */
+    public static byte[] encode(String filename, byte[] plaintext) throws Exception {
+        String hex = "Assembly-CSharp-patch.bytes".equals(filename) ? KEY_PATCH : KEY_DEFAULT;
+        byte[] key = deriveKey(hex);
+
+        byte[] iv = new byte[12];
+        new java.security.SecureRandom().nextBytes(iv);
+
+        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+        cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, "AES"),
+                    new GCMParameterSpec(128, iv));
+        cipher.updateAAD(filename.getBytes(StandardCharsets.UTF_8));
+        byte[] ctTag = cipher.doFinal(plaintext);
+
+        byte[] out = new byte[4 + 12 + ctTag.length];
+        out[0] = 'R'; out[1] = 'M'; out[2] = 'P'; out[3] = '1';
+        System.arraycopy(iv, 0, out, 4, 12);
+        System.arraycopy(ctTag, 0, out, 16, ctTag.length);
+        java.util.Arrays.fill(key, (byte) 0);
+        return out;
+    }
+
 }

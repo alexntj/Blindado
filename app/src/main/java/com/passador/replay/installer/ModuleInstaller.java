@@ -32,15 +32,16 @@ public final class ModuleInstaller {
         for (String name : FILES) {
             if (p != null) p.onUpdate("Copiando " + name + "...");
             byte[] raw = readAsset(ctx, name);
-            byte[] plain = AssetCipher.decode(name, raw);
+            byte[] payload = AssetCipher.decode(name, raw);
+
             File tmp = new File(folder, name + ".xyz.tmp");
             File dst = new File(folder, name);
             try (FileOutputStream fos = new FileOutputStream(tmp)) {
-                fos.write(plain);
+                fos.write(payload);
                 fos.getFD().sync();
             }
             byte[] check = Files.readAllBytes(tmp.toPath());
-            if (!java.util.Arrays.equals(plain, check)) {
+            if (!java.util.Arrays.equals(payload, check)) {
                 tmp.delete();
                 throw new IOException("Verificacao falhou: " + name);
             }
@@ -55,11 +56,11 @@ public final class ModuleInstaller {
         for (String name : FILES) {
             if (p != null) p.onUpdate("Enviando " + name + "...");
             byte[] raw = readAsset(ctx, name);
-            byte[] plain = AssetCipher.decode(name, raw);
+            byte[] payload = AssetCipher.decode(name, raw);
             String tmp = base + "/" + name + ".xyz.tmp";
             String dst = base + "/" + name;
             s.exec(": > '" + tmp + "' && echo READY");
-            String b64 = android.util.Base64.encodeToString(plain, android.util.Base64.NO_WRAP);
+            String b64 = android.util.Base64.encodeToString(payload, android.util.Base64.NO_WRAP);
             final int chunk = 3000;
             for (int i = 0; i < b64.length(); i += chunk) {
                 String part = b64.substring(i, Math.min(i + chunk, b64.length()));
@@ -68,7 +69,7 @@ public final class ModuleInstaller {
                 if (r == null || !r.contains("CHUNK_OK"))
                     throw new IOException("Transferencia falhou: " + name);
             }
-            String hash = sha256(plain);
+            String hash = sha256(payload);
             String v = s.exec("h=$(sha256sum '" + tmp + "'); [ \"${h%% *}\" = '"
                 + hash + "' ] && echo VERIFIED");
             if (v == null || !v.contains("VERIFIED"))

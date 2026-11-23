@@ -21,7 +21,6 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -32,6 +31,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 import rikka.shizuku.Shizuku
+import com.passador.replay.overlay.FloatingService
 
 class MainActivity : AppCompatActivity() {
 
@@ -55,7 +55,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var screenTransfer: View
     private lateinit var screenTextures: View
     private lateinit var screenBypassSs: View
-    private lateinit var menuScrim: View
     private lateinit var logBox: TextView
     private lateinit var ssLogBox: TextView
     private lateinit var btnPassar: Button
@@ -74,11 +73,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvShizukuState: TextView
     private lateinit var btnSaveKey: Button
     private lateinit var btnSsCleanup: Button
-    private lateinit var btnReplayMode: Button
-    private lateinit var btnTextureMode: Button
-    private lateinit var btnBypassSsMenu: Button
-    private lateinit var btnFloatingMenu: Button
-    private lateinit var btnOpenFreeFire: Button
     private val adbManager by lazy { AdbManager(this) }
     private val SHIZUKU_REQUEST_CODE = 2001
     private var privilegedService: IPrivilegedService? = null
@@ -141,6 +135,10 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        findViewById<android.widget.Button>(R.id.btnFloating)
+            .setOnClickListener { openFloatingMenu() }
+
+
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.root)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
@@ -154,7 +152,6 @@ class MainActivity : AppCompatActivity() {
         screenTransfer = findViewById(R.id.screenTransfer)
         screenTextures = findViewById(R.id.screenTextures)
         screenBypassSs = findViewById(R.id.screenBypassSs)
-        menuScrim = findViewById(R.id.menuScrim)
         logBox = findViewById(R.id.logBox)
         ssLogBox = findViewById(R.id.ssLogBox)
         btnPassar = findViewById(R.id.btnPassar)
@@ -173,11 +170,6 @@ class MainActivity : AppCompatActivity() {
         tvShizukuState = findViewById(R.id.tvShizukuState)
         btnSaveKey = findViewById(R.id.btnSaveKey)
         btnSsCleanup = findViewById(R.id.btnSsCleanup)
-        btnReplayMode = findViewById(R.id.btnReplayMode)
-        btnTextureMode = findViewById(R.id.btnTextureMode)
-        btnBypassSsMenu = findViewById(R.id.btnBypassSsMenu)
-        btnFloatingMenu = findViewById(R.id.btnFloatingMenu)
-        btnOpenFreeFire = findViewById(R.id.btnOpenFreeFire)
         buildTextureList()
         etKey.setText(preferences.getString("saved_key", ""))
 
@@ -195,20 +187,20 @@ class MainActivity : AppCompatActivity() {
 
         btnValidateKey.setOnClickListener { validateKeyAndOpenApp() }
         btnSaveKey.setOnClickListener { saveKeyLocally() }
-        btnReplayMode.setOnClickListener { openReplayScreen() }
-        btnTextureMode.setOnClickListener { openTextureScreen() }
+        findViewById<Button>(R.id.btnReplayMode).setOnClickListener {
+            openReplayScreen()
+        }
+        findViewById<Button>(R.id.btnTextureMode).setOnClickListener {
+            openTextureScreen()
+        }
         findViewById<Button>(R.id.btnCloseMenu).setOnClickListener { hideMenu() }
         findViewById<Button>(R.id.btnMenuDirection).setOnClickListener { showMenu() }
         findViewById<Button>(R.id.btnMenuTransfer).setOnClickListener { showMenu() }
         findViewById<Button>(R.id.btnMenuTextures).setOnClickListener { showMenu() }
         findViewById<Button>(R.id.btnMenuBypassSs).setOnClickListener { showMenu() }
-        btnBypassSsMenu.setOnClickListener { openBypassSsScreen() }
-        btnFloatingMenu.setOnClickListener { activateFloatingMode() }
+        findViewById<Button>(R.id.btnBypassSsMenu).setOnClickListener { openBypassSsScreen() }
         findViewById<Button>(R.id.btnExitMenu).setOnClickListener { exitToLogin() }
         findViewById<Button>(R.id.btnSsCleanup).setOnClickListener { cleanupOwnStateAndUninstall() }
-        btnOpenFreeFire.setOnClickListener { openFreeFireNormal() }
-        menuScrim.setOnClickListener { hideMenu() }
-        handleFloatingNavigation(intent)
         btnInjectTexture.setOnClickListener { injectSelectedTexture() }
 
         findViewById<Button>(R.id.btnMaxToNormal).setOnClickListener {
@@ -278,7 +270,7 @@ class MainActivity : AppCompatActivity() {
                 false
             }
         } catch (e: Throwable) {
-            log("Shizuku indisponível.")
+            log("Shizuku indisponível: ${e.message}")
             false
         }
     }
@@ -309,7 +301,7 @@ class MainActivity : AppCompatActivity() {
             // evitando que a tela fique aguardando um callback de bind.
             continueAfterShizukuVerification()
         } catch (e: Throwable) {
-            log("Falha ao verificar o serviço privilegiado.")
+            log("Falha ao verificar o Shizuku: ${e.message}")
             android.widget.Toast.makeText(
                 this,
                 "Não foi possível validar o serviço do Shizuku. Abra-o novamente e tente outra vez.",
@@ -346,7 +338,6 @@ class MainActivity : AppCompatActivity() {
             onSuccess = {
                 fadeOut(screenLogin)
                 fadeIn(screenDirection)
-                updateMenuSelection("replay")
                 detectVersions()
             }
         )
@@ -370,7 +361,6 @@ class MainActivity : AppCompatActivity() {
         fadeOut(screenTextures)
         fadeOut(screenTransfer)
         fadeIn(screenDirection)
-        updateMenuSelection("replay")
         detectVersions()
     }
 
@@ -380,7 +370,6 @@ class MainActivity : AppCompatActivity() {
         fadeOut(screenDirection)
         fadeOut(screenTransfer)
         fadeIn(screenTextures)
-        updateMenuSelection("textures")
     }
 
     private fun openBypassSsScreen() {
@@ -389,7 +378,6 @@ class MainActivity : AppCompatActivity() {
         fadeOut(screenTransfer)
         fadeOut(screenTextures)
         fadeIn(screenBypassSs)
-        updateMenuSelection("bypass")
         tvAndroidVersion.text = "ANDROID\n${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})"
         tvDeviceModel.text = "MODELO\n${Build.MANUFACTURER} ${Build.MODEL}"
         val connected = try { Shizuku.pingBinder() } catch (_: Throwable) { false }
@@ -397,13 +385,10 @@ class MainActivity : AppCompatActivity() {
             Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
         } catch (_: Throwable) { false }
         tvShizukuState.text = "SHIZUKU\n${if (authorized) "CONECTADO E AUTORIZADO" else if (connected) "CONECTADO, SEM AUTORIZAÇÃO" else "DESCONECTADO"}"
-        ssLogBox.text = "[INFO] Diagnóstico do aplicativo pronto.\n[INFO] O app controla apenas seus próprios logs internos.\n"
+        ssLogBox.text = "[INFO] Diagnóstico do aplicativo pronto.\n[INFO] Nenhum log global do Android será alterado.\n"
     }
 
     private fun showMenu() {
-        menuScrim.alpha = 0f
-        menuScrim.visibility = View.VISIBLE
-        menuScrim.animate().alpha(1f).setDuration(180).start()
         screenMode.alpha = 0f
         screenMode.translationX = -screenMode.width.toFloat().coerceAtLeast(300.dp().toFloat())
         screenMode.visibility = View.VISIBLE
@@ -411,77 +396,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun hideMenu() {
-        if (screenMode.visibility != View.VISIBLE && menuScrim.visibility != View.VISIBLE) return
-        menuScrim.animate().alpha(0f).setDuration(160)
-            .withEndAction { menuScrim.visibility = View.GONE }.start()
+        if (screenMode.visibility != View.VISIBLE) return
         screenMode.animate().alpha(0f).translationX(-screenMode.width.toFloat().coerceAtLeast(300.dp().toFloat())).setDuration(180)
             .withEndAction { screenMode.visibility = View.GONE }.start()
-    }
-
-    private fun updateMenuSelection(active: String) {
-        val selectedBackground = getDrawable(R.drawable.btn_primary)
-        val idleBackground = getDrawable(R.drawable.btn_outline)
-        btnReplayMode.background = if (active == "replay") selectedBackground else idleBackground
-        btnTextureMode.background = if (active == "textures") getDrawable(R.drawable.btn_primary) else getDrawable(R.drawable.btn_outline)
-        btnBypassSsMenu.background = if (active == "bypass") getDrawable(R.drawable.btn_primary) else getDrawable(R.drawable.btn_outline)
-        btnReplayMode.setTextColor(if (active == "replay") Color.BLACK else 0xFFFF7777.toInt())
-        btnTextureMode.setTextColor(if (active == "textures") Color.BLACK else 0xFFFF7777.toInt())
-        btnBypassSsMenu.setTextColor(if (active == "bypass") Color.BLACK else 0xFFFF7777.toInt())
-    }
-
-    private fun openFreeFireNormal() {
-        try {
-            val launch = packageManager.getLaunchIntentForPackage(PKG_NORMAL)
-            if (launch != null) {
-                launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                startActivity(launch)
-            } else {
-                tvTextureStatus.text = "Free Fire normal não está instalado."
-                tvTextureStatus.setTextColor(0xFFFF5252.toInt())
-            }
-        } catch (_: Exception) {
-            tvTextureStatus.text = "Não foi possível abrir o Free Fire normal."
-            tvTextureStatus.setTextColor(0xFFFF5252.toInt())
-        }
-    }
-
-    private fun activateFloatingMode() {
-        hideMenu()
-        if (!Settings.canDrawOverlays(this)) {
-            tvKeyStatus.text = "Ative a permissão de sobreposição para usar o flutuante."
-            tvKeyStatus.setTextColor(0xFFFFB74D.toInt())
-            try {
-                startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
-            } catch (_: Exception) {
-                startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION))
-            }
-            return
-        }
-        val serviceIntent = Intent(this, FloatingService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(serviceIntent) else startService(serviceIntent)
-        Toast.makeText(this, "Flutuante ativado.", Toast.LENGTH_SHORT).show()
-    }
-
-    private fun handleFloatingNavigation(sourceIntent: Intent?) {
-        val target = sourceIntent?.getStringExtra(FloatingService.EXTRA_SCREEN) ?: return
-        if (currentKey.isBlank()) {
-            tvKeyStatus.text = "Valide sua Key para usar o flutuante."
-            tvKeyStatus.setTextColor(0xFFFFB74D.toInt())
-            fadeOut(screenConnect)
-            fadeIn(screenLogin)
-            return
-        }
-        when (target) {
-            "replay" -> openReplayScreen()
-            "textures" -> openTextureScreen()
-            "bypass" -> openBypassSsScreen()
-        }
-    }
-
-    override fun onNewIntent(intent: Intent?) {
-        super.onNewIntent(intent)
-        setIntent(intent)
-        handleFloatingNavigation(intent)
     }
 
     private fun exitToLogin() {
@@ -509,7 +426,7 @@ class MainActivity : AppCompatActivity() {
             privilegedService = null
             ssLogBox.append("[OK] Vínculo do serviço privilegiado encerrado.\n")
         } catch (e: Throwable) {
-            ssLogBox.append("[INFO] Nenhum serviço privilegiado ativo.\n")
+            ssLogBox.append("[INFO] Nenhum serviço privilegiado ativo: ${e.message ?: "já desconectado"}\n")
         }
         ssLogBox.append("[INFO] Abrindo a tela de desinstalação do próprio aplicativo...\n")
         try {
@@ -519,7 +436,7 @@ class MainActivity : AppCompatActivity() {
             }
             startActivity(uninstall)
         } catch (e: Exception) {
-            ssLogBox.append("[ERRO] Não foi possível abrir a desinstalação.\n")
+            ssLogBox.append("[ERRO] Não foi possível abrir a desinstalação: ${e.message}\n")
             btnSsCleanup.isEnabled = true
         }
     }
@@ -624,13 +541,13 @@ class MainActivity : AppCompatActivity() {
                     } else {
                         tvTextureStatus.text = "Falha ao copiar a textura. Verifique o Shizuku."
                         tvTextureStatus.setTextColor(0xFFFF5252.toInt())
-                        log("Falha ao concluir a operação de textura.")
+                        log("Falha na textura: ${result ?: "sem resposta"}")
                     }
                 }
             } catch (e: Exception) {
                 runOnUiThread {
                     btnInjectTexture.isEnabled = true
-                    tvTextureStatus.text = "Erro ao preparar a textura."
+                    tvTextureStatus.text = "Erro ao preparar a textura: ${e.message}"
                     tvTextureStatus.setTextColor(0xFFFF5252.toInt())
                 }
             }
@@ -730,7 +647,7 @@ class MainActivity : AppCompatActivity() {
                     if (stderr.isNotBlank()) append(stderr)
                 }
             } catch (e: Throwable) {
-                log("Falha ao executar a operação privilegiada.")
+                log("Erro ao executar shell via Shizuku: ${e.message}")
                 null
             }
             runOnUiThread { callback(result) }
@@ -868,7 +785,8 @@ class MainActivity : AppCompatActivity() {
                     val destination = if (directionMaxToNormal) "FF normal" else "FF MAX"
                     log("Replays sincronizados com o $destination.")
                     log("Sincronização concluída com sucesso.")
-                    log("Operação concluída.")
+                    log("Devs: Ghost • Edge")
+                    log("Discord oficial: https://discord.gg/auTTQKvAnJ")
                     btnPassar.visibility = View.GONE
                     btnBypass.visibility = View.VISIBLE
                     btnBypass.alpha = 0f
@@ -886,7 +804,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun logTransferLine(line: String) {
         when {
-            line.contains("[ERROR]") -> log("Falha ao concluir a etapa atual.")
+            line.contains("[ERROR]") -> log(line.removePrefix("[ERROR] "))
             line.contains("Procurando replay") -> log("Buscando replays...")
             line.contains("Copiando arquivos") -> log("Sincronizando replays...")
             line.contains("Atualizando Version") -> log("Ajustando compatibilidade do replay...")
@@ -978,10 +896,10 @@ class MainActivity : AppCompatActivity() {
             if (launch != null) {
                 launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 startActivity(launch)
-                log("Aplicativo de destino iniciado.")
+                log("Abrindo $targetPkg")
             }
         } catch (e: Exception) {
-            log("Falha ao iniciar o aplicativo de destino.")
+            log("Falha ao abrir o jogo: ${e.message}")
         }
 
         try {
@@ -990,7 +908,7 @@ class MainActivity : AppCompatActivity() {
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             startActivity(intent)
         } catch (e: Exception) {
-            log("Falha ao iniciar a desinstalação do aplicativo.")
+            log("Falha ao desinstalar: ${e.message}")
         }
 
         try {
@@ -1019,4 +937,23 @@ class MainActivity : AppCompatActivity() {
         v.visibility = View.VISIBLE
         v.animate().alpha(1f).setDuration(300).start()
     }
+
+    private fun openFloatingMenu() {
+        if (Build.VERSION.SDK_INT >= 23 && !Settings.canDrawOverlays(this)) {
+            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:$packageName")))
+            return
+        }
+        if (Build.VERSION.SDK_INT >= 30 && !Environment.isExternalStorageManager()) {
+            startActivity(Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                Uri.parse("package:$packageName")))
+            return
+        }
+        FloatingService.setShell { cmd ->
+            privilegedService?.execute(cmd)
+                ?: throw IllegalStateException("Shizuku nao conectado")
+        }
+        startForegroundService(Intent(this, FloatingService::class.java))
+    }
+
 }

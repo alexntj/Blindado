@@ -50,6 +50,7 @@ final class SslUtils {
             sslContext = SSLContext.getInstance("TLSv1.3");
             customConscrypt = false;
         }
+        System.out.println("Using " + (customConscrypt ? "custom" : "default") + " TLSv1.3 provider...");
         sslContext.init(new KeyManager[]{getKeyManager(keyPair)},
                 new X509TrustManager[]{getAllAcceptingTrustManager()},
                 new SecureRandom());
