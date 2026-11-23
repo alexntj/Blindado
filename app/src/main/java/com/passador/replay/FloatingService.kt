@@ -29,6 +29,7 @@ class FloatingService : Service() {
 
     private lateinit var windowManager: WindowManager
     private var bubble: TextView? = null
+    private var bubbleParams: WindowManager.LayoutParams? = null
     private var panel: LinearLayout? = null
     private var panelParams: WindowManager.LayoutParams? = null
 
@@ -44,9 +45,7 @@ class FloatingService : Service() {
         addBubble()
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        return START_STICKY
-    }
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
 
     private fun addBubble() {
         if (bubble != null) return
@@ -60,13 +59,18 @@ class FloatingService : Service() {
             setOnClickListener { togglePanel() }
         }
         val params = overlayParams(58.dp(), 58.dp()).apply {
-            gravity = Gravity.START or Gravity.CENTER_VERTICAL
+            gravity = Gravity.TOP or Gravity.START
             x = 12.dp()
-            y = 0
+            y = (resources.displayMetrics.heightPixels / 2) - 29.dp()
         }
-        view.setOnTouchListener(DragTouchListener(view, params))
+        view.setOnTouchListener(DragTouchListener(view, params) { x, y ->
+            params.x = x
+            params.y = y
+            bubbleParams = params
+        })
         windowManager.addView(view, params)
         bubble = view
+        bubbleParams = params
     }
 
     private fun togglePanel() {
@@ -74,11 +78,31 @@ class FloatingService : Service() {
     }
 
     private fun addPanel() {
+        val source = bubbleParams ?: return
+        val panelWidth = 286.dp()
+        val maxX = (resources.displayMetrics.widthPixels - panelWidth - 8.dp()).coerceAtLeast(8.dp())
+        val startX = source.x.coerceIn(8.dp(), maxX)
+        val startY = source.y.coerceAtLeast(8.dp())
+        val params = overlayParams(panelWidth, WindowManager.LayoutParams.WRAP_CONTENT).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = startX
+            y = startY
+        }
+
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(18.dp(), 18.dp(), 18.dp(), 14.dp())
+            setPadding(18.dp(), 14.dp(), 18.dp(), 14.dp())
             background = rounded(0xF5120D14.toInt(), 22f, 0xFFE51C3E.toInt(), 2)
             elevation = 18f
+        }
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, 0, 0, 8.dp())
+        }
+        val headerText = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_VERTICAL
         }
         val title = TextView(this).apply {
             text = "PRIV BYPASS"
@@ -86,33 +110,45 @@ class FloatingService : Service() {
             setTextColor(0xFFFF6B7F.toInt())
             letterSpacing = 0.16f
         }
-        root.addView(title, LinearLayout.LayoutParams(-1, -2))
         val subtitle = TextView(this).apply {
             text = "Painel flutuante"
-            textSize = 20f
+            textSize = 19f
             setTextColor(Color.WHITE)
-            setPadding(0, 4.dp(), 0, 10.dp())
+            setPadding(0, 3.dp(), 0, 0)
         }
-        root.addView(subtitle, LinearLayout.LayoutParams(-1, -2))
+        headerText.addView(title, LinearLayout.LayoutParams(0, -2, 1f))
+        headerText.addView(subtitle, LinearLayout.LayoutParams(0, -2, 1f))
+        header.addView(headerText, LinearLayout.LayoutParams(0, -2, 1f))
+        val minimize = topButton("−") { removePanel() }
+        val close = topButton("×") { stopSelf() }
+        header.addView(minimize, LinearLayout.LayoutParams(42.dp(), 42.dp()).apply { marginStart = 6.dp() })
+        header.addView(close, LinearLayout.LayoutParams(42.dp(), 42.dp()).apply { marginStart = 6.dp() })
+        headerText.setOnTouchListener(DragTouchListener(headerText, params) { x, y ->
+            val maxPanelX = (resources.displayMetrics.widthPixels - panelWidth - 8.dp()).coerceAtLeast(8.dp())
+            params.x = x.coerceIn(8.dp(), maxPanelX)
+            params.y = y.coerceAtLeast(8.dp())
+            bubbleParams?.x = params.x
+            bubbleParams?.y = params.y
+            panelParams = params
+        })
+        root.addView(header, LinearLayout.LayoutParams(-1, -2))
         addAction(root, "PASSADOR DE REPLAY") { openScreen("replay") }
         addAction(root, "TEXTURAS") { openScreen("textures") }
         addAction(root, "BYPASS SS") { openScreen("bypass") }
-        val close = Button(this).apply {
-            text = "FECHAR PAINEL"
-            textSize = 12f
-            setTextColor(0xFFFFAAB7.toInt())
-            background = rounded(0x00121212, 14f, 0x66FF6B7F, 1)
-            setOnClickListener { removePanel() }
-        }
-        root.addView(close, LinearLayout.LayoutParams(-1, 46.dp()).apply { topMargin = 8.dp() })
-        val params = overlayParams(286.dp(), WindowManager.LayoutParams.WRAP_CONTENT).apply {
-            gravity = Gravity.START or Gravity.CENTER_VERTICAL
-            x = 14.dp()
-            y = 0
-        }
+
         windowManager.addView(root, params)
         panel = root
         panelParams = params
+        bubble?.visibility = View.GONE
+    }
+
+    private fun topButton(label: String, action: () -> Unit) = Button(this).apply {
+        text = label
+        textSize = 20f
+        setTextColor(Color.WHITE)
+        background = rounded(0xFF2B111A.toInt(), 13f, 0xFFB52A48.toInt(), 1)
+        setPadding(0, 0, 0, 1.dp())
+        setOnClickListener { action() }
     }
 
     private fun addAction(root: LinearLayout, label: String, action: () -> Unit) {
@@ -136,11 +172,19 @@ class FloatingService : Service() {
     }
 
     private fun removePanel() {
+        panelParams?.let { params ->
+            bubbleParams?.x = params.x
+            bubbleParams?.y = params.y
+        }
         panel?.let {
             try { windowManager.removeView(it) } catch (_: Exception) { }
         }
         panel = null
         panelParams = null
+        bubble?.visibility = View.VISIBLE
+        bubbleParams?.let { params ->
+            try { windowManager.updateViewLayout(bubble, params) } catch (_: Exception) { }
+        }
     }
 
     override fun onDestroy() {
@@ -149,6 +193,7 @@ class FloatingService : Service() {
             try { windowManager.removeView(it) } catch (_: Exception) { }
         }
         bubble = null
+        bubbleParams = null
         super.onDestroy()
     }
 
@@ -190,7 +235,8 @@ class FloatingService : Service() {
 
     private class DragTouchListener(
         private val view: View,
-        private val params: WindowManager.LayoutParams
+        private val params: WindowManager.LayoutParams,
+        private val onMove: (Int, Int) -> Unit
     ) : View.OnTouchListener {
         private var downX = 0f
         private var downY = 0f
@@ -212,8 +258,9 @@ class FloatingService : Service() {
                     val dx = event.rawX - downX
                     val dy = event.rawY - downY
                     if (kotlin.math.abs(dx) > 8 || kotlin.math.abs(dy) > 8) moved = true
-                    params.x = startX + dx.toInt()
-                    params.y = startY + dy.toInt()
+                    val nextX = startX + dx.toInt()
+                    val nextY = startY + dy.toInt()
+                    onMove(nextX, nextY)
                     (view.context.getSystemService(WINDOW_SERVICE) as WindowManager).updateViewLayout(view, params)
                     return true
                 }
