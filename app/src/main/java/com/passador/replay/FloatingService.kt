@@ -116,14 +116,14 @@ class FloatingService : Service() {
             setTextColor(Color.WHITE)
             setPadding(0, 3.dp(), 0, 0)
         }
-        headerText.addView(title, LinearLayout.LayoutParams(0, -2, 1f))
-        headerText.addView(subtitle, LinearLayout.LayoutParams(0, -2, 1f))
+        headerText.addView(title, LinearLayout.LayoutParams(-1, LinearLayout.LayoutParams.WRAP_CONTENT))
+        headerText.addView(subtitle, LinearLayout.LayoutParams(-1, LinearLayout.LayoutParams.WRAP_CONTENT))
         header.addView(headerText, LinearLayout.LayoutParams(0, -2, 1f))
         val minimize = topButton("−") { removePanel() }
         val close = topButton("×") { stopSelf() }
         header.addView(minimize, LinearLayout.LayoutParams(42.dp(), 42.dp()).apply { marginStart = 6.dp() })
         header.addView(close, LinearLayout.LayoutParams(42.dp(), 42.dp()).apply { marginStart = 6.dp() })
-        headerText.setOnTouchListener(DragTouchListener(headerText, params) { x, y ->
+        headerText.setOnTouchListener(DragTouchListener(root, params) { x, y ->
             val maxPanelX = (resources.displayMetrics.widthPixels - panelWidth - 8.dp()).coerceAtLeast(8.dp())
             params.x = x.coerceIn(8.dp(), maxPanelX)
             params.y = y.coerceAtLeast(8.dp())
@@ -234,7 +234,7 @@ class FloatingService : Service() {
         .build()
 
     private class DragTouchListener(
-        private val view: View,
+        private val windowView: View,
         private val params: WindowManager.LayoutParams,
         private val onMove: (Int, Int) -> Unit
     ) : View.OnTouchListener {
@@ -261,7 +261,12 @@ class FloatingService : Service() {
                     val nextX = startX + dx.toInt()
                     val nextY = startY + dy.toInt()
                     onMove(nextX, nextY)
-                    (view.context.getSystemService(WINDOW_SERVICE) as WindowManager).updateViewLayout(view, params)
+                    try {
+                        (windowView.context.getSystemService(WINDOW_SERVICE) as WindowManager)
+                            .updateViewLayout(windowView, params)
+                    } catch (_: IllegalArgumentException) {
+                        return true
+                    }
                     return true
                 }
                 MotionEvent.ACTION_UP -> {
