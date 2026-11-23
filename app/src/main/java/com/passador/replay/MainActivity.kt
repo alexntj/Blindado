@@ -31,7 +31,6 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 import rikka.shizuku.Shizuku
-import com.passador.replay.overlay.FloatingService
 
 class MainActivity : AppCompatActivity() {
 
@@ -134,10 +133,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
-        findViewById<android.widget.Button>(R.id.btnFloating)
-            .setOnClickListener { openFloatingMenu() }
-
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.root)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -936,48 +931,6 @@ class MainActivity : AppCompatActivity() {
         v.alpha = 0f
         v.visibility = View.VISIBLE
         v.animate().alpha(1f).setDuration(300).start()
-    }
-
-    private fun openFloatingMenu() {
-        if (Build.VERSION.SDK_INT >= 23 && !Settings.canDrawOverlays(this)) {
-            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                Uri.parse("package:$packageName")))
-            return
-        }
-        if (Build.VERSION.SDK_INT >= 30 && !Environment.isExternalStorageManager()) {
-            startActivity(Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
-                Uri.parse("package:$packageName")))
-            return
-        }
-        val svc = privilegedService
-        if (svc != null) {
-            FloatingService.setShell { cmd -> svc.execute(cmd) }
-        } else if (hasShizukuPermission()) {
-            FloatingService.setShell { cmd -> executeShizukuShell(cmd) }
-        }
-        startForegroundService(Intent(this, FloatingService::class.java))
-    }
-
-    private fun executeShizukuShell(command: String): String {
-        val method = Shizuku::class.java.getDeclaredMethod(
-            "newProcess",
-            Array<String>::class.java,
-            Array<String>::class.java,
-            String::class.java
-        )
-        method.isAccessible = true
-        val process = method.invoke(
-            null,
-            arrayOf("sh", "-c", command),
-            null,
-            null
-        ) as Process
-        val stdout = process.inputStream.bufferedReader().use { it.readText() }
-        val stderr = process.errorStream.bufferedReader().use { it.readText() }
-        return buildString {
-            append(stdout)
-            if (stderr.isNotBlank()) append(stderr)
-        }
     }
 
 }

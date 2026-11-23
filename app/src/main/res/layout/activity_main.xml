@@ -75,15 +75,4 @@
         <Button android:id="@+id/btnExitMenu" android:layout_width="match_parent" android:layout_height="52dp" android:background="@drawable/btn_danger" android:text="SAIR" android:textColor="#FFFFFF" android:textSize="13sp" />
         <Button android:id="@+id/btnCloseMenu" android:layout_width="match_parent" android:layout_height="46dp" android:layout_marginTop="8dp" android:background="@android:color/transparent" android:text="FECHAR" android:textColor="#777777" android:textSize="12sp" />
     </LinearLayout>
-
-    <Button
-        android:id="@+id/btnFloating"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:layout_margin="16dp"
-        android:backgroundTint="#FF1A1A"
-        android:textColor="#FFFFFF"
-        android:text="Abrir flutuante"
-        android:elevation="8dp" />
 </FrameLayout>
