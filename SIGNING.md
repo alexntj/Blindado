@@ -1,12 +1,12 @@
 # Assinatura do APK
 
-O projeto valida o certificado atual do APK instalado usando o módulo `libintegrity`. O fingerprint público autorizado é `bd68b288664443f4482ac295bf67dc774339d8f334697b51087e49d8383458a8`. A chave privada (`.jks`) e sua senha são entregues separadamente e não devem ser adicionadas ao repositório.
+O projeto valida o certificado do APK instalado pelo módulo `libintegrity`. O fingerprint público autorizado nesta branch é `5e7983afb37285390ab66a54a918990f6424bf6edef1116c10a0451d3025a622`. A nova chave foi gerada para substituir a chave anterior, cujo arquivo privado não estava disponível. Instalações assinadas pela chave antiga precisam ser removidas antes de instalar este APK.
 
-No Windows PowerShell, gere primeiro o APK pelo Gradle (`.\gradlew.bat assembleDebug`). Em seguida, use `apksigner` do Android SDK Build Tools para assinar o APK com a keystore fornecida:
+O workflow `Build APK` publica `PrivBypass-APK-unsigned-debug`. Esse artefato do Actions usa a chave de depuração padrão e não deve ser instalado neste app protegido por verificação de assinatura. Para obter um APK válido, assine localmente com o arquivo privado `ghostpriv-release.jks` e o alias `ghostprivbypads`:
 
-```powershell
-apksigner sign --ks .\ghostprivbypads-release.jks --ks-key-alias ghostprivbypads --out .\PassadorReplay-signed.apk .\app\build\outputs\apk\debug\app-debug.apk
-apksigner verify --verbose --print-certs .\PassadorReplay-signed.apk
+```sh
+apksigner sign --ks ghostpriv-release.jks --ks-key-alias ghostprivbypads --out app-signed.apk app-debug.apk
+apksigner verify --verbose --print-certs app-signed.apk
 ```
 
-O `apksigner` solicitará a senha da keystore; a senha da chave usa o mesmo valor. O app falha fechado se o pacote instalado não tiver exatamente um certificado assinante e o fingerprint SHA-256 não corresponder. O certificado é público; a keystore e a senha devem ser guardadas em backup privado.
+Confirme que o certificado exibido por `apksigner` tem o fingerprint indicado acima. A keystore e a senha devem ficar em backups privados e nunca ser adicionadas ao repositório ou a logs.

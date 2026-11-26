@@ -12,7 +12,7 @@ import java.security.MessageDigest;
 /** Verifica a assinatura atual do pacote instalado contra o certificado aprovado. */
 public final class IntegrityVerifier {
     private static final String EXPECTED_SIGNER_SHA256 =
-            "bd68b288664443f4482ac295bf67dc774339d8f334697b51087e49d8383458a8";
+            "5e7983afb37285390ab66a54a918990f6424bf6edef1116c10a0451d3025a622";
     private static final char[] HEX = "0123456789abcdef".toCharArray();
 
     private IntegrityVerifier() {
