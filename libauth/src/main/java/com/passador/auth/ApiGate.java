@@ -13,7 +13,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
 public final class ApiGate {
-    private static final String VALIDATE_URL = "https://ghostcheats.de.deplexo.com/api/validate";
+    private static final String VALIDATE_URL = "https://ghostcheats.de.deplexo.com/api/fake-lag-holograma";
     private static final String USER_AGENT = "PrivReplay/2.0";
 
     private ApiGate() {
@@ -95,11 +95,31 @@ public final class ApiGate {
             }
 
             JSONObject response = new JSONObject(responseText);
+            boolean expiryValid = true;
+            if (response.has("expiresAt") && !response.isNull("expiresAt")) {
+                Object expiresValue = response.opt("expiresAt");
+                long expiresAt = 0L;
+                if (expiresValue instanceof Number) {
+                    expiresAt = ((Number) expiresValue).longValue();
+                } else if (expiresValue instanceof String) {
+                    try {
+                        expiresAt = Long.parseLong(((String) expiresValue).trim());
+                    } catch (NumberFormatException ignored) {
+                        expiryValid = false;
+                    }
+                } else {
+                    expiryValid = false;
+                }
+                if (expiryValid && expiresAt != 0L && expiresAt <= System.currentTimeMillis()) {
+                    expiryValid = false;
+                }
+            }
             boolean authorized = response.optBoolean("success", false)
                     && "active".equals(response.optString("status"))
                     && !response.optBoolean("killed", false)
-                    && !response.optBoolean("banned", false);
-            String returnedToken = response.optString("sessionToken", sessionToken);
+                    && !response.optBoolean("banned", false)
+                    && expiryValid;
+            String returnedToken = response.optString("sessionToken", response.optString("token", sessionToken));
             return new Validation(
                     authorized,
                     response.optString("message"),

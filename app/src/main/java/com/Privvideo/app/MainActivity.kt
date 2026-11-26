@@ -1,13 +1,18 @@
 package com.Privvideo.app
 
+import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
 import android.Manifest
 import android.content.ComponentName
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
+import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
@@ -32,11 +37,14 @@ import java.text.SimpleDateFormat
 import java.util.*
 import rikka.shizuku.Shizuku
 
+import android.widget.Toast
+
+
 class MainActivity : AppCompatActivity() {
 
     private companion object {
         const val APP_ID = "com.Privvideo.app"
-        const val APP_VERSION_CODE = 1
+        const val APP_VERSION_CODE = 2
         const val APP_SLUG = "stirlax-modz-m1nx-oficial"
         const val APP_VERSION = "2.0"
         const val OFFICIAL_GROUP_URL = "https://whatsapp.com/channel/0029VbCowiZGJP8MKaHW0k3k"
@@ -47,15 +55,23 @@ class MainActivity : AppCompatActivity() {
     private val PATH_NORMAL = "/storage/emulated/0/Android/data/com.dts.freefireth/files/MReplays/"
     private val PATH_MAX = "/storage/emulated/0/Android/data/com.dts.freefiremax/files/MReplays/"
     private val REQ_NOTIFICATION = 1001
+    private val REQ_STORAGE = 1002
+    private val REQ_OVERLAY_PERMISSION = 4201
+    private val REQ_VPN_PERMISSION = 4202
 
     private lateinit var screenConnect: View
     private lateinit var screenLogin: View
+    private lateinit var screenVpnHome: View
+    private lateinit var btnVpnToggle: Button
+    private lateinit var tvVpnHomeStatus: TextView
+    private var vpnControlsStarted = false
     private lateinit var screenMode: View
     private lateinit var screenDirection: View
     private lateinit var screenTransfer: View
-    private lateinit var screenTextures: View
     private lateinit var screenBypassSs: View
+    private lateinit var screenHologram: View
     private lateinit var menuBackdrop: View
+    private var galaxyBackground: GalaxyParticleView? = null
     private lateinit var logBox: TextView
     private lateinit var ssLogBox: TextView
     private lateinit var btnPassar: Button
@@ -66,9 +82,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var etKey: EditText
     private lateinit var btnValidateKey: Button
     private lateinit var tvKeyStatus: TextView
-    private lateinit var textureList: LinearLayout
-    private lateinit var btnInjectTexture: Button
-    private lateinit var tvTextureStatus: TextView
+    private lateinit var btnInjectMaxHologram: Button
+    private lateinit var btnClearPrivBypassFolder: Button
+    private lateinit var tvMaxHologramStatus: TextView
+    private lateinit var hologramSafeIndicator: View
+    private lateinit var hologramLogBox: TextView
+    private lateinit var hologramLogScroll: ScrollView
+    private var hologramIndicatorAnimator: ObjectAnimator? = null
+    private var hologramInjectionInProgress = false
+    private var privBypassCleanupInProgress = false
     private lateinit var tvAndroidVersion: TextView
     private lateinit var tvDeviceModel: TextView
     private lateinit var tvShizukuState: TextView
@@ -114,26 +136,21 @@ class MainActivity : AppCompatActivity() {
     private var currentKey = ""
     private var currentSessionToken = ""
     private val preferences by lazy { getSharedPreferences("priv_bypass_preferences", MODE_PRIVATE) }
-    private data class TexturePack(val displayName: String, val folderName: String, val thumbnail: Int)
-    private val texturePacks = arrayOf(
-        TexturePack("BAKI", "2 BAKI", R.drawable.thumb_baki),
-        TexturePack("BAKUGO", "1 BAKUGO", R.drawable.thumb_bakugo),
-        TexturePack("GOKU BLACK", "3 GOKU BLACK", R.drawable.thumb_goku_black),
-        TexturePack("SUPER SAYAJIN 3", "4 GOKU SUPER SAYAJIN 3", R.drawable.thumb_ssj3),
-        TexturePack("LUFFY", "5 LUFFY", R.drawable.thumb_luffy),
-        TexturePack("LUFFY GEAR 5", "6 LUFFY GEAR SIX", R.drawable.thumb_luffy_gear6),
-        TexturePack("PANTERA COR DE ROSA", "7 PANTERA COR DE ROSA", R.drawable.thumb_pantera),
-        TexturePack("GOJO", "8 GOJO", R.drawable.thumb_gojo),
-        TexturePack("CHAMA", "10 CHAMA", R.drawable.thumb_chama),
-        TexturePack("FINN", "11 FINN", R.drawable.thumb_finn),
-        TexturePack("SONIC", "9 SONIC", R.drawable.thumb_sonic),
-        TexturePack("CJ", "12 CJ", R.drawable.thumb_cj)
-    )
-    private var selectedTextureIndex = 0
+    private val overlayHologramReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context?, intent: Intent?) {
+            if (intent?.action == FloatingPanelService.ACTION_HOLOGRAM_INJECT) {
+                injectMaxHologram()
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        val hologramFilter = IntentFilter(FloatingPanelService.ACTION_HOLOGRAM_INJECT)
+        if (Build.VERSION.SDK_INT >= 33) registerReceiver(overlayHologramReceiver, hologramFilter, RECEIVER_NOT_EXPORTED)
+        else registerReceiver(overlayHologramReceiver, hologramFilter)
+        galaxyBackground = findViewById(R.id.galaxyBackground)
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.root)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -145,11 +162,15 @@ class MainActivity : AppCompatActivity() {
         menuBackdrop.setOnClickListener { hideMenu() }
         screenConnect = findViewById(R.id.screenConnect)
         screenLogin = findViewById(R.id.screenLogin)
+        screenVpnHome = findViewById(R.id.screenVpnHome)
+        btnVpnToggle = findViewById(R.id.btnVpnToggle)
+        tvVpnHomeStatus = findViewById(R.id.tvVpnHomeStatus)
+        renderVpnToggleAppearance(false)
         screenMode = findViewById(R.id.screenMode)
         screenDirection = findViewById(R.id.screenDirection)
         screenTransfer = findViewById(R.id.screenTransfer)
-        screenTextures = findViewById(R.id.screenTextures)
         screenBypassSs = findViewById(R.id.screenBypassSs)
+        screenHologram = findViewById(R.id.screenHologram)
         logBox = findViewById(R.id.logBox)
         ssLogBox = findViewById(R.id.ssLogBox)
         btnPassar = findViewById(R.id.btnPassar)
@@ -160,14 +181,16 @@ class MainActivity : AppCompatActivity() {
         etKey = findViewById(R.id.etKey)
         btnValidateKey = findViewById(R.id.btnValidateKey)
         tvKeyStatus = findViewById(R.id.tvKeyStatus)
-        textureList = findViewById(R.id.textureList)
-        btnInjectTexture = findViewById(R.id.btnInjectTexture)
-        tvTextureStatus = findViewById(R.id.tvTextureStatus)
+        btnInjectMaxHologram = findViewById(R.id.btnInjectMaxHologram)
+        btnClearPrivBypassFolder = findViewById(R.id.btnClearPrivBypassFolder)
+        tvMaxHologramStatus = findViewById(R.id.tvMaxHologramStatus)
+        hologramSafeIndicator = findViewById(R.id.hologramSafeIndicator)
+        hologramLogBox = findViewById(R.id.hologramLogBox)
+        hologramLogScroll = findViewById(R.id.hologramLogScroll)
         tvAndroidVersion = findViewById(R.id.tvAndroidVersion)
         tvDeviceModel = findViewById(R.id.tvDeviceModel)
         tvShizukuState = findViewById(R.id.tvShizukuState)
         btnSsCleanup = findViewById(R.id.btnSsCleanup)
-        buildTextureList()
         etKey.setText(preferences.getString("saved_key", ""))
 
         // Pede as duas permissões assim que abre
@@ -183,6 +206,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnValidateKey.setOnClickListener { validateKeyAndOpenApp() }
+        btnVpnToggle.setOnClickListener {
+            if (vpnControlsStarted) stopVpnControls() else requestOverlayAndVpnPermissions()
+        }
         findViewById<Button>(R.id.btnSaveKey).setOnClickListener { saveKeyLocally() }
         findViewById<Button>(R.id.btnOfficialGroup).setOnClickListener {
             try {
@@ -194,18 +220,15 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnReplayMode).setOnClickListener {
             openReplayScreen()
         }
-        findViewById<Button>(R.id.btnTextureMode).setOnClickListener {
-            openTextureScreen()
-        }
         findViewById<Button>(R.id.btnCloseMenu).setOnClickListener { hideMenu() }
         findViewById<Button>(R.id.btnMenuDirection).setOnClickListener { showMenu() }
         findViewById<Button>(R.id.btnMenuTransfer).setOnClickListener { showMenu() }
-        findViewById<Button>(R.id.btnMenuTextures).setOnClickListener { showMenu() }
         findViewById<Button>(R.id.btnMenuBypassSs).setOnClickListener { showMenu() }
         findViewById<Button>(R.id.btnBypassSsMenu).setOnClickListener { openBypassSsScreen() }
         findViewById<Button>(R.id.btnExitMenu).setOnClickListener { exitToLogin() }
         findViewById<Button>(R.id.btnSsCleanup).setOnClickListener { cleanupOwnStateAndUninstall() }
-        btnInjectTexture.setOnClickListener { injectSelectedTexture() }
+        btnInjectMaxHologram.setOnClickListener { injectMaxHologram() }
+        btnClearPrivBypassFolder.setOnClickListener { confirmClearPrivBypassFolder() }
 
         findViewById<Button>(R.id.btnMaxToNormal).setOnClickListener {
             directionMaxToNormal = true
@@ -227,6 +250,37 @@ class MainActivity : AppCompatActivity() {
 
         screenConnect.alpha = 0f
         screenConnect.animate().alpha(1f).setDuration(500).start()
+        handleOverlayAction(intent?.action)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleOverlayAction(intent.action)
+    }
+
+    private fun handleOverlayAction(action: String?) {
+        if (action == FloatingPanelService.ACTION_BYPASS_SS_UNINSTALL) {
+            cleanupOwnStateAndUninstall()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        galaxyBackground?.resumeAnimation()
+        if (this::btnSsCleanup.isInitialized && this::screenBypassSs.isInitialized &&
+            screenBypassSs.visibility == View.VISIBLE) {
+            btnSsCleanup.isEnabled = true
+        }
+        if (this::screenHologram.isInitialized && screenHologram.visibility == View.VISIBLE) {
+            startHologramIndicatorPulse()
+        }
+    }
+
+    override fun onPause() {
+        galaxyBackground?.pauseAnimation()
+        stopHologramIndicatorPulse()
+        super.onPause()
     }
 
     private fun openShizuku() {
@@ -334,56 +388,218 @@ class MainActivity : AppCompatActivity() {
         val key = etKey.text.toString().trim()
         if (key.isEmpty()) {
             tvKeyStatus.text = "Digite sua Key para continuar."
-            tvKeyStatus.setTextColor(0xFFFF5252.toInt())
+            tvKeyStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
             return
         }
         validateKey(
             key,
             onSuccess = {
+                currentKey = key
+                saveKeyLocally()
                 fadeOut(screenLogin)
-                fadeIn(screenDirection)
-                detectVersions()
+                fadeIn(screenVpnHome)
+                tvVpnHomeStatus.text = "Key validada. Toque para ativar a VPN e abrir o painel."
             }
         )
+    }
+
+    private fun requestOverlayAndVpnPermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+            val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
+            startActivityForResult(intent, REQ_OVERLAY_PERMISSION)
+            tvVpnHomeStatus.text = "Autorize a sobreposição para abrir o painel flutuante."
+            return
+        }
+        requestVpnPermission()
+    }
+
+    private fun requestVpnPermission() {
+        val prepare = VpnService.prepare(this)
+        if (prepare != null) {
+            startActivityForResult(prepare, REQ_VPN_PERMISSION)
+        } else {
+            launchFloatingControls()
+        }
+    }
+
+    private fun launchFloatingControls() {
+        try {
+            val vpnIntent = Intent(this, NetworkPauseVpnService::class.java).setAction(NetworkPauseVpnService.ACTION_START)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(vpnIntent) else startService(vpnIntent)
+            val overlayIntent = Intent(this, FloatingPanelService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(overlayIntent) else startService(overlayIntent)
+            renderVpnToggleAppearance(true)
+            fadeOut(screenDirection)
+            fadeOut(screenTransfer)
+            fadeOut(screenBypassSs)
+            fadeOut(screenHologram)
+        } catch (e: Exception) {
+            tvVpnHomeStatus.text = "Não foi possível iniciar o painel: ${e.message ?: "erro desconhecido"}"
+            tvVpnHomeStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
+        }
+    }
+
+    private fun stopVpnControls() {
+        var failure: String? = null
+        try {
+            stopService(Intent(this, FloatingPanelService::class.java))
+        } catch (e: Exception) {
+            failure = e.message ?: "não foi possível parar o painel"
+        }
+        try {
+            val stopIntent = Intent(this, NetworkPauseVpnService::class.java)
+                .setAction(NetworkPauseVpnService.ACTION_STOP)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(stopIntent) else startService(stopIntent)
+        } catch (e: Exception) {
+            if (failure == null) failure = e.message ?: "não foi possível desligar a VPN"
+        }
+
+        renderVpnToggleAppearance(false)
+        if (failure == null) {
+            tvVpnHomeStatus.text = "●  VPN DESLIGADA · TOQUE PARA CONECTAR"
+            tvVpnHomeStatus.setTextColor(0xFFC4B5FD.toInt())
+        } else {
+            tvVpnHomeStatus.text = "Falha ao desligar VPN: $failure"
+            tvVpnHomeStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
+        }
+    }
+
+    private fun renderVpnToggleAppearance(active: Boolean) {
+        vpnControlsStarted = active
+        btnVpnToggle.apply {
+            text = if (active) "DESCONECTAR VPN" else "CONECTAR VPN"
+            textSize = 16f
+            setTextColor(Color.WHITE)
+            compoundDrawablePadding = 12.dp()
+            setPaddingRelative(20.dp(), 0, 20.dp(), 0)
+            setCompoundDrawablesRelativeWithIntrinsicBounds(
+                ContextCompat.getDrawable(this@MainActivity, R.drawable.ic_vpn_shield),
+                null,
+                null,
+                null
+            )
+            background = if (active) {
+                GradientDrawable(
+                    GradientDrawable.Orientation.TL_BR,
+                    intArrayOf(0xFF16A34A.toInt(), 0xFF064E3B.toInt())
+                ).apply {
+                    shape = GradientDrawable.RECTANGLE
+                    cornerRadius = 22.dp().toFloat()
+                    setStroke(2.dp(), 0xFFD1FAE5.toInt())
+                }
+            } else {
+                ContextCompat.getDrawable(this@MainActivity, R.drawable.vpn_button)
+            }
+            contentDescription = if (active) "VPN ativa. Toque para desligar." else "VPN desligada. Toque para conectar."
+        }
+        tvVpnHomeStatus.text = if (active) "●  VPN ATIVA · TOQUE PARA DESLIGAR" else "●  VPN DESLIGADA · PRONTA PARA CONECTAR"
+        tvVpnHomeStatus.setTextColor(
+            if (active) ContextCompat.getColor(this, R.color.state_success) else 0xFFC4B5FD.toInt()
+        )
+    }
+
+    @Deprecated("Legacy permission result used for Android VPN and overlay consent")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        when (requestCode) {
+            REQ_OVERLAY_PERMISSION -> {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)) {
+                    requestVpnPermission()
+                } else {
+                    tvVpnHomeStatus.text = "Permissão de sobreposição não concedida."
+                    tvVpnHomeStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
+                }
+            }
+            REQ_VPN_PERMISSION -> {
+                if (resultCode == RESULT_OK) launchFloatingControls() else {
+                    tvVpnHomeStatus.text = "Permissão de VPN recusada."
+                    tvVpnHomeStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
+                }
+            }
+        }
     }
 
     private fun saveKeyLocally() {
         val key = etKey.text.toString().trim()
         if (key.isBlank()) {
             tvKeyStatus.text = "Digite uma Key antes de salvar."
-            tvKeyStatus.setTextColor(0xFFFF5252.toInt())
+            tvKeyStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
             return
         }
         preferences.edit().putString("saved_key", key).apply()
         tvKeyStatus.text = "Key salva neste aparelho."
-        tvKeyStatus.setTextColor(0xFF66FF99.toInt())
+        tvKeyStatus.setTextColor(ContextCompat.getColor(this, R.color.state_success))
     }
 
     private fun openReplayScreen() {
         hideMenu()
         setActiveMenuItem(R.id.btnReplayMode)
         fadeOut(screenBypassSs)
-        fadeOut(screenTextures)
+        fadeOut(screenHologram)
         fadeOut(screenTransfer)
         fadeIn(screenDirection)
         detectVersions()
     }
 
-    private fun openTextureScreen() {
+    private fun openHologramScreen() {
         hideMenu()
-        setActiveMenuItem(R.id.btnTextureMode)
-        fadeOut(screenBypassSs)
         fadeOut(screenDirection)
         fadeOut(screenTransfer)
-        fadeIn(screenTextures)
+        fadeOut(screenBypassSs)
+        animateHologramEntry()
+        val maxVersion = try { packageManager.getPackageInfo(PKG_MAX, 0).versionName } catch (_: Exception) { null }
+        val installed = maxVersion != null
+        findViewById<TextView>(R.id.tvHologramMaxVersion).text = if (installed) {
+            "FREE FIRE MAX\nVersão instalada: $maxVersion"
+        } else {
+            "FREE FIRE MAX\nNão instalado"
+        }
+        btnInjectMaxHologram.isEnabled = installed
+        tvMaxHologramStatus.text = if (installed) "STATUS DO PACOTE: PRONTO" else "STATUS DO PACOTE: FF MAX NÃO INSTALADO"
+        tvMaxHologramStatus.setTextColor(if (installed) ContextCompat.getColor(this, R.color.state_success) else ContextCompat.getColor(this, R.color.state_error))
+        startHologramIndicatorPulse()
+        appendHologramLog("Tela holograma safe aberta.")
+        appendHologramLog(if (installed) "Free Fire MAX detectado: versão $maxVersion." else "Free Fire MAX não está instalado neste dispositivo.")
+    }
+
+    private fun startHologramIndicatorPulse() {
+        if (!this::hologramSafeIndicator.isInitialized || screenHologram.visibility != View.VISIBLE) return
+        hologramIndicatorAnimator?.cancel()
+        hologramSafeIndicator.alpha = 1f
+        hologramIndicatorAnimator = ObjectAnimator.ofFloat(hologramSafeIndicator, View.ALPHA, 1f, 0.28f).apply {
+            duration = 620L
+            repeatMode = ValueAnimator.REVERSE
+            repeatCount = ValueAnimator.INFINITE
+            start()
+        }
+    }
+
+    private fun stopHologramIndicatorPulse() {
+        hologramIndicatorAnimator?.cancel()
+        hologramIndicatorAnimator = null
+        if (this::hologramSafeIndicator.isInitialized) hologramSafeIndicator.alpha = 1f
+    }
+
+    private fun animateHologramEntry() {
+        screenHologram.animate().cancel()
+        screenHologram.alpha = 0f
+        screenHologram.translationY = 14f * resources.displayMetrics.density
+        screenHologram.visibility = View.VISIBLE
+        screenHologram.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .setDuration(320L)
+            .setInterpolator(android.view.animation.DecelerateInterpolator())
+            .start()
     }
 
     private fun openBypassSsScreen() {
         hideMenu()
         setActiveMenuItem(R.id.btnBypassSsMenu)
+        fadeOut(screenVpnHome)
         fadeOut(screenDirection)
         fadeOut(screenTransfer)
-        fadeOut(screenTextures)
+        fadeOut(screenHologram)
         fadeIn(screenBypassSs)
         tvAndroidVersion.text = "ANDROID\n${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})"
         tvDeviceModel.text = "MODELO\n${Build.MANUFACTURER} ${Build.MODEL}"
@@ -404,7 +620,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setActiveMenuItem(activeId: Int) {
-        val ids = intArrayOf(R.id.btnReplayMode, R.id.btnTextureMode, R.id.btnBypassSsMenu)
+        val ids = intArrayOf(R.id.btnReplayMode, R.id.btnBypassSsMenu)
         ids.forEach { id ->
             val button = findViewById<Button>(id)
             val active = id == activeId
@@ -412,7 +628,7 @@ class MainActivity : AppCompatActivity() {
                 this,
                 if (active) R.drawable.btn_primary else R.drawable.btn_outline
             )
-            button.setTextColor(if (active) 0xFF000000.toInt() else 0xFFFF7777.toInt())
+            button.setTextColor(if (active) 0xFF000000.toInt() else ContextCompat.getColor(this, R.color.accent_soft))
         }
     }
 
@@ -431,7 +647,7 @@ class MainActivity : AppCompatActivity() {
         currentSessionToken = ""
         fadeOut(screenDirection)
         fadeOut(screenTransfer)
-        fadeOut(screenTextures)
+        fadeOut(screenHologram)
         fadeOut(screenBypassSs)
         fadeIn(screenLogin)
         tvKeyStatus.text = "Sessão encerrada. A Key salva continua preenchida."
@@ -440,6 +656,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun cleanupOwnStateAndUninstall() {
         btnSsCleanup.isEnabled = false
+        stopVpnControls()
         ssLogBox.text = "[INFO] Iniciando limpeza do estado do Cap cut...\n"
         ssLogBox.append("[OK] Limpando o painel de logs gerado pelo aplicativo.\n")
         logBox.text = ""
@@ -465,117 +682,221 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun buildTextureList() {
-        textureList.removeAllViews()
-        texturePacks.forEachIndexed { index, pack ->
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = android.view.Gravity.CENTER_VERTICAL
-                setPadding(10.dp(), 8.dp(), 12.dp(), 8.dp())
-            }
-            val image = ImageView(this).apply {
-                setImageResource(pack.thumbnail)
-                scaleType = ImageView.ScaleType.CENTER_CROP
-            }
-            row.addView(image, LinearLayout.LayoutParams(58.dp(), 58.dp()))
-            val name = TextView(this).apply {
-                text = pack.displayName
-                textSize = 15f
-                setTextColor(Color.WHITE)
-                typeface = android.graphics.Typeface.DEFAULT_BOLD
-                setPadding(14.dp(), 0, 0, 0)
-            }
-            row.addView(name, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            val number = TextView(this).apply {
-                text = String.format("%02d", index + 1)
-                textSize = 12f
-                setTextColor(0xFFFF7777.toInt())
-            }
-            row.addView(number)
-            row.setOnClickListener {
-                selectedTextureIndex = index
-                updateTextureSelection()
-            }
-            textureList.addView(row, LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { setMargins(0, 0, 0, 8.dp()) })
-        }
-        updateTextureSelection()
-    }
-
-    private fun updateTextureSelection() {
-        for (i in 0 until textureList.childCount) {
-            val selected = i == selectedTextureIndex
-            textureList.getChildAt(i).background = GradientDrawable().apply {
-                cornerRadius = 18.dp().toFloat()
-                setColor(if (selected) 0xFF3A1115.toInt() else 0xFF160909.toInt())
-                setStroke(if (selected) 2 else 1, if (selected) 0xFFFF3D55.toInt() else 0xFF321316.toInt())
-            }
-        }
-        tvTextureStatus.text = "Selecionado: ${texturePacks[selectedTextureIndex].displayName}"
-        tvTextureStatus.setTextColor(0xFFBBBBBB.toInt())
-    }
-
     private fun Int.dp(): Int = (this * resources.displayMetrics.density).toInt()
 
-    private fun injectSelectedTexture() {
+    /**
+     * Instala o pacote "holograma arma" no diretório de dados do Free Fire MAX.
+     * Os arquivos são extraídos dos assets do APK para uma área compartilhada
+     * legível pelo processo privilegiado e copiados usando a sessão Shizuku já existente.
+     */
+    private fun injectMaxHologram() {
+        animateHologramButtonPress()
+        appendHologramLog("Toque em INJETAR recebido.")
+        if (privBypassCleanupInProgress) {
+            appendHologramLog("Aguarde a limpeza da pasta PrivBypass terminar antes de injetar.")
+            return
+        }
         if (currentKey.isBlank()) {
-            tvTextureStatus.text = "Valide sua Key antes de injetar uma textura."
-            tvTextureStatus.setTextColor(0xFFFF5252.toInt())
+            tvMaxHologramStatus.text = "Valide sua Key antes de aplicar o pacote."
+            tvMaxHologramStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
+            appendHologramLog("Falha: nenhuma Key validada nesta sessão.")
             return
         }
 
-        val selected = texturePacks[selectedTextureIndex]
-        btnInjectTexture.isEnabled = false
-        tvTextureStatus.text = "Preparando ${selected.displayName}..."
-        tvTextureStatus.setTextColor(0xFFBBBBBB.toInt())
+        if (!hasSharedStorageAccess()) {
+            tvMaxHologramStatus.text = "Permita o acesso ao armazenamento e tente novamente."
+            tvMaxHologramStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
+            appendHologramLog("Aguardando permissão de acesso ao armazenamento compartilhado.")
+            requestAllFilesPermission()
+            return
+        }
+
+        try {
+            packageManager.getPackageInfo(PKG_MAX, 0)
+        } catch (_: PackageManager.NameNotFoundException) {
+            tvMaxHologramStatus.text = "Free Fire MAX não está instalado."
+            tvMaxHologramStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
+            appendHologramLog("Falha: Free Fire MAX não está instalado.")
+            return
+        }
+
+        btnInjectMaxHologram.isEnabled = false
+        btnClearPrivBypassFolder.isEnabled = false
+        hologramInjectionInProgress = true
+        tvMaxHologramStatus.text = "Preparando arquivos do holograma..."
+        tvMaxHologramStatus.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
+        appendHologramLog("Validações concluídas; iniciando preparação dos arquivos.")
 
         Thread {
             try {
-                // O replay trabalha diretamente no armazenamento compartilhado; as texturas
-                // também ficam nele para o processo shell do Shizuku conseguir lê-las.
-                val root = File(Environment.getExternalStorageDirectory(), "PrivBypass/texture_packs")
-                val selectedRoot = File(root, selected.folderName)
-                root.mkdirs()
-                copyAssetTree("texture_packs/${selected.folderName}", selectedRoot)
-                val source = File(selectedRoot, PKG_NORMAL)
-                if (!source.isDirectory) {
-                    throw IllegalStateException("Pasta do Free Fire não encontrada no asset")
-                }
+                val sharedRoot = File(Environment.getExternalStorageDirectory(), "PrivBypass/max_hologram")
+                val sourcePackage = File(sharedRoot, PKG_MAX)
+                appendHologramLog("Extraindo os assets do pacote para o armazenamento compartilhado.")
+                sharedRoot.mkdirs()
+                copyAssetTree("max_hologram/$PKG_MAX", sourcePackage)
 
+                val fileInfo = File(sourcePackage, "files/contentcache/Optional/android/fileinfo")
+                val shader = File(sourcePackage, "files/contentcache/Optional/android/gameassetbundles/shaders.Nagimodz~Gratis~3D")
+                if (!fileInfo.isFile || !shader.isFile || fileInfo.length() == 0L || shader.length() == 0L) {
+                    throw IllegalStateException("Os arquivos do pacote estão incompletos.")
+                }
+                appendHologramLog("Assets extraídos e arquivos obrigatórios verificados.")
+
+                val dataDir = "/storage/emulated/0/Android/data"
+                val targetPackage = "$dataDir/$PKG_MAX"
                 val command = """
-                    set -e
-                    SOURCE_DIR=${shellQuote(source.absolutePath)}
-                    TARGET_DIR=${shellQuote("/storage/emulated/0/Android/data/$PKG_NORMAL")}
+                    set -eu
+                    SOURCE_DIR=${shellQuote(sourcePackage.absolutePath)}
+                    DATA_DIR=${shellQuote(dataDir)}
+                    TARGET_DIR=${shellQuote(targetPackage)}
                     test -d "${'$'}SOURCE_DIR"
-                    mkdir -p "${'$'}TARGET_DIR"
-                    cp -rf "${'$'}SOURCE_DIR"/. "${'$'}TARGET_DIR"/
+                    test -s "${'$'}SOURCE_DIR/files/contentcache/Optional/android/fileinfo"
+                    test -s "${'$'}SOURCE_DIR/files/contentcache/Optional/android/gameassetbundles/shaders.Nagimodz~Gratis~3D"
+                    mkdir -p "${'$'}DATA_DIR"
+                    cp -rf "${'$'}SOURCE_DIR" "${'$'}DATA_DIR/"
                     sync
-                    test -d "${'$'}TARGET_DIR"
-                    echo '[RESULT] TEXTURE_OK'
+                    test -s "${'$'}TARGET_DIR/files/contentcache/Optional/android/fileinfo"
+                    test -s "${'$'}TARGET_DIR/files/contentcache/Optional/android/gameassetbundles/shaders.Nagimodz~Gratis~3D"
+                    SRC_INFO=${'$'}(wc -c < "${'$'}SOURCE_DIR/files/contentcache/Optional/android/fileinfo")
+                    DST_INFO=${'$'}(wc -c < "${'$'}TARGET_DIR/files/contentcache/Optional/android/fileinfo")
+                    SRC_SHADER=${'$'}(wc -c < "${'$'}SOURCE_DIR/files/contentcache/Optional/android/gameassetbundles/shaders.Nagimodz~Gratis~3D")
+                    DST_SHADER=${'$'}(wc -c < "${'$'}TARGET_DIR/files/contentcache/Optional/android/gameassetbundles/shaders.Nagimodz~Gratis~3D")
+                    test "${'$'}SRC_INFO" = "${'$'}DST_INFO"
+                    test "${'$'}SRC_SHADER" = "${'$'}DST_SHADER"
+                    echo '[RESULT] MAX_HOLOGRAM_OK'
                 """.trimIndent()
 
-                runOnUiThread { tvTextureStatus.text = "Copiando ${selected.displayName} via Shizuku..." }
+                runOnUiThread {
+                    tvMaxHologramStatus.text = "Copiando para Android/data via Shizuku..."
+                }
+                appendHologramLog("Enviando a cópia para Android/data usando Shizuku.")
                 executePrivileged(command) { result ->
-                    btnInjectTexture.isEnabled = true
-                    if (result != null && result.contains("[RESULT] TEXTURE_OK")) {
-                        tvTextureStatus.text = "${selected.displayName} aplicado com sucesso no FF NORMAL."
-                        tvTextureStatus.setTextColor(0xFF66FF99.toInt())
+                    btnInjectMaxHologram.isEnabled = true
+                    btnClearPrivBypassFolder.isEnabled = true
+                    hologramInjectionInProgress = false
+                    if (result != null && result.contains("[RESULT] MAX_HOLOGRAM_OK")) {
+                        tvMaxHologramStatus.text = "ARQUIVOS COPIADOS PARA O FF MAX"
+                        tvMaxHologramStatus.setTextColor(ContextCompat.getColor(this, R.color.state_success))
+                        appendHologramLog("Sucesso: arquivos copiados e tamanhos conferidos no destino.")
                     } else {
-                        tvTextureStatus.text = "Falha ao copiar a textura. Verifique o Shizuku."
-                        tvTextureStatus.setTextColor(0xFFFF5252.toInt())
-                        log("Falha na textura: ${result ?: "sem resposta"}")
+                        tvMaxHologramStatus.text = "Falha ao copiar. Verifique a autorização Shizuku."
+                        tvMaxHologramStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
+                        val detail = result?.trim()?.takeLast(180)?.takeIf { it.isNotBlank() } ?: "sem resposta do Shizuku"
+                        appendHologramLog("Falha na cópia via Shizuku: $detail")
                     }
                 }
             } catch (e: Exception) {
                 runOnUiThread {
-                    btnInjectTexture.isEnabled = true
-                    tvTextureStatus.text = "Erro ao preparar a textura: ${e.message}"
-                    tvTextureStatus.setTextColor(0xFFFF5252.toInt())
+                    btnInjectMaxHologram.isEnabled = true
+                    btnClearPrivBypassFolder.isEnabled = true
+                    hologramInjectionInProgress = false
+                    tvMaxHologramStatus.text = "Erro ao preparar pacote: ${e.message}"
+                    tvMaxHologramStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
+                }
+                appendHologramLog("Erro ao preparar o pacote: ${e.message ?: e.javaClass.simpleName}")
+            }
+        }.start()
+    }
+
+    private fun confirmClearPrivBypassFolder() {
+        if (hologramInjectionInProgress || privBypassCleanupInProgress) {
+            appendHologramLog("Aguarde a operação atual terminar antes de limpar a pasta.")
+            return
+        }
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Limpar pasta PrivBypass?")
+            .setMessage("Isso apaga a pasta PrivBypass do armazenamento do aparelho. O holograma já copiado para o Free Fire MAX não será removido.")
+            .setNegativeButton("CANCELAR", null)
+            .setPositiveButton("LIMPAR") { _, _ -> clearPrivBypassFolder() }
+            .show()
+    }
+
+    private fun clearPrivBypassFolder() {
+        if (hologramInjectionInProgress || privBypassCleanupInProgress) {
+            appendHologramLog("Limpeza não iniciada: há outra operação em andamento.")
+            return
+        }
+
+        if (!hasSharedStorageAccess()) {
+            appendHologramLog("Permissão de armazenamento necessária para limpar PrivBypass.")
+            tvMaxHologramStatus.text = "Permita o acesso ao armazenamento para limpar a pasta."
+            tvMaxHologramStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
+            requestAllFilesPermission()
+            return
+        }
+
+        val storageRoot = Environment.getExternalStorageDirectory()
+        val workspace = File(storageRoot, "PrivBypass")
+        val injectWasEnabled = btnInjectMaxHologram.isEnabled
+        btnClearPrivBypassFolder.isEnabled = false
+        btnInjectMaxHologram.isEnabled = false
+        privBypassCleanupInProgress = true
+        appendHologramLog("Iniciando limpeza de /storage/emulated/0/PrivBypass.")
+
+        Thread {
+            val result = try {
+                val canonicalRoot = storageRoot.canonicalFile
+                val canonicalWorkspace = workspace.canonicalFile
+                if (canonicalWorkspace.parentFile != canonicalRoot || canonicalWorkspace.name != "PrivBypass") {
+                    throw SecurityException("O caminho de limpeza não corresponde à pasta PrivBypass.")
+                }
+
+                when {
+                    !workspace.exists() -> true to "A pasta PrivBypass já não existe."
+                    workspace.deleteRecursively() -> true to "Pasta PrivBypass removida."
+                    else -> false to "Não foi possível remover todos os arquivos da pasta PrivBypass."
+                }
+            } catch (e: Exception) {
+                false to (e.message ?: e.javaClass.simpleName)
+            }
+
+            runOnUiThread {
+                privBypassCleanupInProgress = false
+                btnClearPrivBypassFolder.isEnabled = true
+                btnInjectMaxHologram.isEnabled = injectWasEnabled
+                if (result.first) {
+                    tvMaxHologramStatus.text = "PASTA PRIVBYPASS LIMPA"
+                    tvMaxHologramStatus.setTextColor(ContextCompat.getColor(this, R.color.state_success))
+                    appendHologramLog("${result.second} O holograma já instalado não foi alterado.")
+                } else {
+                    tvMaxHologramStatus.text = "Falha ao limpar a pasta PrivBypass."
+                    tvMaxHologramStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
+                    appendHologramLog("Falha na limpeza: ${result.second}")
                 }
             }
         }.start()
+    }
+
+    private fun animateHologramButtonPress() {
+        btnInjectMaxHologram.animate().cancel()
+        btnInjectMaxHologram.animate()
+            .scaleX(0.97f)
+            .scaleY(0.97f)
+            .setDuration(75L)
+            .setInterpolator(android.view.animation.DecelerateInterpolator())
+            .withEndAction {
+                btnInjectMaxHologram.animate()
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .setDuration(180L)
+                    .setInterpolator(android.view.animation.DecelerateInterpolator())
+                    .start()
+            }
+            .start()
+    }
+
+    private fun appendHologramLog(message: String) {
+        sendBroadcast(Intent(FloatingPanelService.ACTION_HOLOGRAM_STATUS).setPackage(packageName)
+            .putExtra(FloatingPanelService.EXTRA_HOLOGRAM_STATUS, message))
+        if (!this::hologramLogBox.isInitialized) return
+        runOnUiThread {
+            if (isFinishing || isDestroyed) return@runOnUiThread
+            val timestamp = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
+            val existing = hologramLogBox.text.toString().lineSequence().filter { it.isNotBlank() }.toList()
+            hologramLogBox.text = (existing + "[$timestamp] $message").takeLast(80).joinToString("\n")
+            hologramLogScroll.post { hologramLogScroll.fullScroll(View.FOCUS_DOWN) }
+        }
     }
 
     private fun copyAssetTree(assetPath: String, destination: File) {
@@ -611,13 +932,13 @@ class MainActivity : AppCompatActivity() {
                     currentKey = key
                     currentSessionToken = result.sessionToken
                     tvKeyStatus.text = result.message.ifBlank { "Key autorizada." }
-                    tvKeyStatus.setTextColor(0xFF66FF99.toInt())
+                    tvKeyStatus.setTextColor(ContextCompat.getColor(this, R.color.state_success))
                     onSuccess()
                 } else {
                     tvKeyStatus.text = result.message.ifBlank {
                         "Key inválida, expirada, pausada ou HWID não corresponde."
                     }
-                    tvKeyStatus.setTextColor(0xFFFF5252.toInt())
+                    tvKeyStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
                     onFailure()
                 }
             }
@@ -645,7 +966,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun executePrivileged(command: String, callback: (String?) -> Unit) {
         if (!hasShizukuPermission()) {
-            callback(null)
+            runOnUiThread { callback(null) }
             return
         }
         Thread {
@@ -662,7 +983,7 @@ class MainActivity : AppCompatActivity() {
                     arrayOf("sh", "-c", command),
                     null,
                     null
-                ) as Process
+                ) as java.lang.Process
 
                 val stdout = process.inputStream.bufferedReader().use { it.readText() }
                 val stderr = process.errorStream.bufferedReader().use { it.readText() }
@@ -679,6 +1000,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        try { unregisterReceiver(overlayHologramReceiver) } catch (_: Exception) { }
+        galaxyBackground?.pauseAnimation()
+        stopHologramIndicatorPulse()
         Shizuku.removeRequestPermissionResultListener(shizukuPermissionListener)
         try {
             Shizuku.unbindUserService(shizukuArgs, shizukuConnection, true)
@@ -700,6 +1024,15 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun hasSharedStorageAccess(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Environment.isExternalStorageManager()
+        } else {
+            ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) ==
+                PackageManager.PERMISSION_GRANTED
+        }
+    }
+
     private fun requestAllFilesPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             if (!Environment.isExternalStorageManager()) {
@@ -714,6 +1047,13 @@ class MainActivity : AppCompatActivity() {
                     } catch (_: Exception) {}
                 }
             }
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
+                REQ_STORAGE
+            )
         }
     }
 
@@ -744,12 +1084,12 @@ class MainActivity : AppCompatActivity() {
 
         if (!normalOk || !maxOk) {
             tvStatus.text = "⚠ Os dois Free Fire precisam estar instalados"
-            tvStatus.setTextColor(0xFFFF5252.toInt())
+            tvStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
             btnPassar.isEnabled = false
             btnPassar.alpha = 0.4f
         } else {
             tvStatus.text = "Tudo pronto"
-            tvStatus.setTextColor(0xFFFF1A1A.toInt())
+            tvStatus.setTextColor(ContextCompat.getColor(this, R.color.accent_primary))
             btnPassar.isEnabled = true
             btnPassar.alpha = 1f
         }
@@ -775,7 +1115,7 @@ class MainActivity : AppCompatActivity() {
             fadeOut(screenTransfer)
             fadeIn(screenLogin)
             tvKeyStatus.text = "Valide sua Key antes de transferir."
-            tvKeyStatus.setTextColor(0xFFFF5252.toInt())
+            tvKeyStatus.setTextColor(ContextCompat.getColor(this, R.color.state_error))
             return
         }
         log("Validando API...")
@@ -953,13 +1293,36 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun fadeOut(v: View) {
-        v.animate().alpha(0f).setDuration(260).withEndAction { v.visibility = View.GONE }.start()
+        if (v.visibility != View.VISIBLE) return
+        if (this::screenHologram.isInitialized && v === screenHologram) stopHologramIndicatorPulse()
+        v.animate().cancel()
+        val offset = 8f * resources.displayMetrics.density
+        v.animate()
+            .alpha(0f)
+            .translationY(-offset)
+            .setDuration(220)
+            .setInterpolator(android.view.animation.AccelerateDecelerateInterpolator())
+            .withEndAction {
+                v.visibility = View.GONE
+                v.translationY = 0f
+            }
+            .start()
     }
 
     private fun fadeIn(v: View) {
+        v.animate().cancel()
         v.alpha = 0f
+        v.translationY = 8f * resources.displayMetrics.density
         v.visibility = View.VISIBLE
-        v.animate().alpha(1f).setDuration(300).start()
+        v.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .setDuration(280)
+            .setInterpolator(android.view.animation.AccelerateDecelerateInterpolator())
+            .start()
     }
+
+
+
 
 }

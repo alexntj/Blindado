@@ -28,11 +28,11 @@ class AdbManager(private val context: Context) {
         require(host.isNotBlank() && port in 1..65535 && code.length in 4..8)
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return false
         val endpoint = if (host == "localhost" || host == "127.0.0.1") localIpv4() else host
-        Log.i(TAG, "Iniciando pareamento Wireless Debugging em $endpoint:$port")
+
         getManager().pair(endpoint, port, code)
         } catch (e: Exception) {
             lastError = e.message ?: e.javaClass.simpleName
-            Log.e(TAG, "Falha no pareamento ADB", e)
+
             false
         }
     }
@@ -51,7 +51,7 @@ class AdbManager(private val context: Context) {
         m.connect(5555)
         } catch (e: Exception) {
             lastError = e.message ?: e.javaClass.simpleName
-            Log.e(TAG, "Falha ao conectar ADB", e)
+
             false
         }
     }
@@ -72,7 +72,7 @@ class AdbManager(private val context: Context) {
             }
         }
     } catch (e: Exception) {
-        Log.e(TAG, "Erro no shell ADB", e)
+
         null
     }
 
