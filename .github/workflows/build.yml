@@ -25,8 +25,8 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew --no-daemon clean assembleDebug
 
-      - name: Upload unsigned debug APK
+      - name: Upload unsigned debug APKs by ABI
         uses: actions/upload-artifact@v4
         with:
-          name: PrivBypass-APK-unsigned-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: PrivBypass-APK-unsigned-debug-per-ABI
+          path: app/build/outputs/apk/debug/*.apk

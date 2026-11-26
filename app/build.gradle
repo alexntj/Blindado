@@ -19,6 +19,21 @@ android {
         versionName "@ghostprivbypass"
     }
 
+    splits {
+        abi {
+            enable true
+            reset()
+            include 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
+            universalApk false
+        }
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging true
+        }
+    }
+
     buildTypes {
         debug {
             debuggable false
@@ -57,4 +72,7 @@ dependencies {
     implementation 'org.bouncycastle:bcprov-jdk15to18:1.81'
     implementation 'org.bouncycastle:bcpkix-jdk15to18:1.81'
     implementation 'org.conscrypt:conscrypt-android:2.5.3'
+    // Firestack userspace TCP/IP engine: forwards ordinary traffic through VpnService,
+    // allowing the bridge to selectively block TCP/UDP destination port 53017.
+    implementation 'com.celzero:firestack:525c343dde@aar'
 }

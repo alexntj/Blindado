@@ -22,7 +22,6 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.IBinder
-import android.content.pm.PackageManager
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -33,7 +32,6 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.app.NotificationCompat
 import kotlin.math.abs
-import rikka.shizuku.Shizuku
 
 /** Fundo preto com rastros brancos descendo, desenhados em Canvas sem criar views extras. */
 private class DigitalRainDrawable(private val cornerRadius: Float) : Drawable() {
@@ -113,57 +111,17 @@ class FloatingPanelService : Service() {
 
     private var portCommandBusy = false
     private var portBlocked = false
-    private var shizukuBinding = false
-    private var pendingPortBlock: Boolean? = null
-    private var bindTimeoutRunnable: Runnable? = null
-
-    private val shizukuArgs by lazy {
-        Shizuku.UserServiceArgs(
-            android.content.ComponentName(packageName, PrivilegedService::class.java.name)
-        ).daemon(false)
-            .processNameSuffix("port53017")
-            .debuggable(true)
-            .version(3)
-    }
-
-    private val shizukuConnection = object : android.content.ServiceConnection {
-        override fun onServiceConnected(name: android.content.ComponentName, binder: IBinder) {
-            val connectedService = IPrivilegedService.Stub.asInterface(binder)
-            shizukuBinding = false
-            bindTimeoutRunnable?.let { android.os.Handler(mainLooper).removeCallbacks(it) }
-            bindTimeoutRunnable = null
-            if (connectedService == null) {
-                pendingPortBlock = null
-                portCommandBusy = false
-                android.widget.Toast.makeText(this@FloatingPanelService, "O executor Shizuku conectou sem um binder válido; comando não executado.", android.widget.Toast.LENGTH_LONG).show()
-                return
-            }
-            privilegedService = connectedService
-            val pending = pendingPortBlock
-            if (pending != null) {
-                pendingPortBlock = null
-                portCommandBusy = false
-                setPort53017Blocked(pending)
-            }
-        }
-
-        override fun onServiceDisconnected(name: android.content.ComponentName) {
-            privilegedService = null
-            shizukuBinding = false
-            pendingPortBlock = null
-            portCommandBusy = false
-            bindTimeoutRunnable?.let { android.os.Handler(mainLooper).removeCallbacks(it) }
-            bindTimeoutRunnable = null
-        }
-    }
-
-    private var privilegedService: IPrivilegedService? = null
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
                 ACTION_STATE -> {
-                    paused = intent.getBooleanExtra(NetworkPauseVpnService.EXTRA_PAUSED, false)
+                    paused = intent.getBooleanExtra(PortFilterVpnService.EXTRA_PAUSED, false)
+                    portBlocked = intent.getBooleanExtra(PortFilterVpnService.EXTRA_PORT_BLOCKED, portBlocked)
+                    portCommandBusy = false
+                    intent.getStringExtra(PortFilterVpnService.EXTRA_ERROR)?.let { error ->
+                        android.widget.Toast.makeText(this@FloatingPanelService, error, android.widget.Toast.LENGTH_LONG).show()
+                    }
                     renderNetworkState()
                 }
                 ACTION_HOLOGRAM_STATUS -> hologramStatus?.text = intent.getStringExtra(EXTRA_HOLOGRAM_STATUS) ?: "Aguardando ação"
@@ -175,7 +133,6 @@ class FloatingPanelService : Service() {
     override fun onCreate() {
         super.onCreate()
         startPanelForeground()
-        // O serviço executor é vinculado sob demanda no primeiro toque do botão.
         wm = getSystemService(WINDOW_SERVICE) as WindowManager
         val filter = IntentFilter().apply { addAction(ACTION_STATE); addAction(ACTION_HOLOGRAM_STATUS); addAction(ACTION_CLOSE) }
         if (Build.VERSION.SDK_INT >= 33) registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED) else registerReceiver(receiver, filter)
@@ -288,9 +245,9 @@ class FloatingPanelService : Service() {
         ghost = ImageView(this).apply {
             setImageResource(R.drawable.ic_ghost_mark)
             scaleType = ImageView.ScaleType.CENTER_INSIDE
-            contentDescription = if (paused) "Retomar tráfego" else "Pausar tráfego"
+            contentDescription = if (portBlocked) "Liberar porta 53017 para todos os apps" else "Bloquear porta 53017 para todos os apps"
             setPadding(dp(11), dp(11), dp(11), dp(11))
-            background = ghostBackground(paused)
+            background = ghostBackground(portBlocked)
             clipToOutline = true
             elevation = dp(16).toFloat()
             isClickable = true
@@ -311,119 +268,26 @@ class FloatingPanelService : Service() {
         if (portBlocked) setPort53017Blocked(false)
     }
 
-    private fun bindShizukuController(): Boolean {
-        if (shizukuBinding) return true
-        return try {
-            if (!Shizuku.pingBinder()) return false
-            if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) return false
-            shizukuBinding = true
-            Shizuku.bindUserService(shizukuArgs, shizukuConnection)
-            true
-        } catch (_: Throwable) {
-            shizukuBinding = false
-            false
-        }
-    }
-
     private fun togglePort53017() {
-        if (portCommandBusy) return
         setPort53017Blocked(!portBlocked)
     }
 
     private fun setPort53017Blocked(block: Boolean) {
         if (portCommandBusy) return
-        val service = privilegedService
-        if (service == null) {
-            val connected = try { Shizuku.pingBinder() } catch (_: Throwable) { false }
-            if (!connected) {
-                android.widget.Toast.makeText(this, "Shizuku está desconectado; não executei o comando.", android.widget.Toast.LENGTH_LONG).show()
-                return
-            }
-            val authorized = try { Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED } catch (_: Throwable) { false }
-            if (!authorized) {
-                android.widget.Toast.makeText(this, "O Shizuku não autorizou este app; não executei o comando.", android.widget.Toast.LENGTH_LONG).show()
-                return
-            }
-            pendingPortBlock = block
-            portCommandBusy = true
-            if (!bindShizukuController()) {
-                pendingPortBlock = null
-                portCommandBusy = false
-                android.widget.Toast.makeText(this, "Não consegui iniciar o executor do Shizuku; comando não executado.", android.widget.Toast.LENGTH_LONG).show()
-                return
-            }
-            if (privilegedService == null && bindTimeoutRunnable == null) {
-                val timeout = Runnable {
-                    if (privilegedService == null && pendingPortBlock != null) {
-                        pendingPortBlock = null
-                        portCommandBusy = false
-                        shizukuBinding = false
-                        bindTimeoutRunnable = null
-                        try { Shizuku.unbindUserService(shizukuArgs, shizukuConnection, false) } catch (_: Throwable) { }
-                        android.widget.Toast.makeText(this, "O executor do Shizuku não conectou; o comando não foi executado.", android.widget.Toast.LENGTH_LONG).show()
-                    }
-                }
-                bindTimeoutRunnable = timeout
-                android.os.Handler(mainLooper).postDelayed(timeout, 8000L)
-            }
-            return
-        }
-
         portCommandBusy = true
-        Thread {
-            val result = try {
-                service.execute(buildPortFirewallCommand(block))
-            } catch (e: Throwable) {
-                "ERROR: ${e.message ?: e.javaClass.simpleName}"
-            }
-            android.os.Handler(mainLooper).post {
-                portCommandBusy = false
-                val success = result.contains("GHOST_PORT_53017_OK")
-                if (success) {
-                    portBlocked = block
-                    paused = block
-                    renderNetworkState()
-                } else {
-                    android.widget.Toast.makeText(
-                        this,
-                        "Falha ao ${if (block) "bloquear" else "liberar"} a porta 53017: ${result.take(180)}",
-                        android.widget.Toast.LENGTH_LONG
-                    ).show()
-                }
-            }
-        }.start()
-    }
-
-    private fun buildPortFirewallCommand(block: Boolean): String {
-        val binaries = listOf("iptables", "ip6tables")
-        val rules = mutableListOf<String>()
-        for (binary in binaries) {
-            for (protocol in listOf("tcp", "udp")) {
-                rules += "$binary -w -C OUTPUT -p $protocol --dport 53017 -j REJECT"
-                rules += "$binary -w -C INPUT -p $protocol --sport 53017 -j REJECT"
-            }
+        val intent = Intent(this, PortFilterVpnService::class.java)
+            .setAction(PortFilterVpnService.ACTION_SET_PORT_BLOCKED)
+            .putExtra(PortFilterVpnService.EXTRA_PORT_BLOCKED_REQUEST, block)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent) else startService(intent)
+        } catch (e: Exception) {
+            portCommandBusy = false
+            android.widget.Toast.makeText(
+                this,
+                "Falha ao ${if (block) "ativar" else "desativar"} o bloqueio VPN: ${e.message ?: e.javaClass.simpleName}",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
         }
-        val commands = if (block) {
-            rules.map { check ->
-                val add = check.replace(" -C ", " -I ")
-                "if $check >/dev/null 2>&1; then :; elif $add; then :; else echo 'ERRO: falha ao aplicar regra da porta 53017' >&2; failures=\$((failures+1)); fi"
-            }
-        } else {
-            rules.map { check ->
-                val remove = check.replace(" -C ", " -D ")
-                "$remove >/dev/null 2>&1 || { echo 'ERRO: falha ao remover regra da porta 53017' >&2; failures=\$((failures+1)); }"
-            }
-        }
-        return buildString {
-            append("failures=0; ")
-            commands.forEach { append(it).append("; ") }
-            append("if [ \$failures -eq 0 ]; then echo GHOST_PORT_53017_OK; else echo 'ERRO: bloqueio incompleto; verifique root/NET_ADMIN e iptables/ip6tables' >&2; exit 1; fi")
-        }
-    }
-
-    private fun sendNetworkAction(action: String) {
-        val i = Intent(this, NetworkPauseVpnService::class.java).setAction(action)
-        if (Build.VERSION.SDK_INT >= 26) startForegroundService(i) else startService(i)
     }
 
     private fun showTab(tab: Int) {
@@ -442,7 +306,7 @@ class FloatingPanelService : Service() {
                 box.addView(fakeLagSwitch, LinearLayout.LayoutParams(-1, dp(44)).apply { topMargin = dp(12) })
                 status = label(if (portBlocked) "PORTA 53017 BLOQUEADA" else "PORTA 53017 LIBERADA", 10f, 0xFF65E69A.toInt(), true).apply { gravity = Gravity.CENTER; setPadding(0, dp(10), 0, 0) }
                 box.addView(status)
-                box.addView(label( "Ative o Fake Lag para exibir o botão fantasma. O bloqueio usa iptables via Shizuku e requer root/NET_ADMIN; afeta somente TCP e UDP na porta 53017.", 9f, 0xFF9CA3AF.toInt(), false).apply { gravity = Gravity.CENTER; setPadding(0, dp(8), 0, 0) })
+                box.addView(label("Ative o Fake Lag para exibir o botão fantasma. O botão bloqueia globalmente TCP e UDP na porta 53017 pela VPN, encaminhando o restante do tráfego.", 9f, 0xFF9CA3AF.toInt(), false).apply { gravity = Gravity.CENTER; setPadding(0, dp(8), 0, 0) })
             }
             TAB_TEXTURES -> {
                 box.addView(label("HOLOGRAMA · FREE FIRE MAX", 11f, Color.WHITE, true).apply { gravity = Gravity.CENTER })
@@ -474,7 +338,7 @@ class FloatingPanelService : Service() {
         status?.text = if (portBlocked) "PORTA 53017 BLOQUEADA" else "PORTA 53017 LIBERADA"
         status?.setTextColor(if (portBlocked) 0xFFFF7777.toInt() else 0xFF65E69A.toInt())
         ghost?.background = ghostBackground(portBlocked)
-        ghost?.contentDescription = if (portBlocked) "Liberar porta 53017" else "Bloquear porta 53017"
+        ghost?.contentDescription = if (portBlocked) "Liberar porta 53017 para todos os apps" else "Bloquear porta 53017 para todos os apps"
         ghost?.alpha = 1f
     }
 
@@ -552,13 +416,6 @@ class FloatingPanelService : Service() {
         try { unregisterReceiver(receiver) } catch (_: Exception) { }
         listOfNotNull(panel, launcher, ghost).forEach { try { wm.removeView(it) } catch (_: Exception) { } }
         panel = null; launcher = null; ghost = null
-        bindTimeoutRunnable?.let { android.os.Handler(mainLooper).removeCallbacks(it) }
-        bindTimeoutRunnable = null
-        try { if (portBlocked) privilegedService?.execute(buildPortFirewallCommand(false)) } catch (_: Throwable) { }
-        if (shizukuBinding || privilegedService != null) {
-            try { Shizuku.unbindUserService(shizukuArgs, shizukuConnection, true) } catch (_: Throwable) { }
-        }
-        privilegedService = null
         if (Build.VERSION.SDK_INT >= 24) stopForeground(STOP_FOREGROUND_REMOVE) else stopForeground(true)
         super.onDestroy()
     }

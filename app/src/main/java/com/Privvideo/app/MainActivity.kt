@@ -424,7 +424,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun launchFloatingControls() {
         try {
-            val vpnIntent = Intent(this, NetworkPauseVpnService::class.java).setAction(NetworkPauseVpnService.ACTION_START)
+            val vpnIntent = Intent(this, PortFilterVpnService::class.java).setAction(PortFilterVpnService.ACTION_START)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(vpnIntent) else startService(vpnIntent)
             val overlayIntent = Intent(this, FloatingPanelService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(overlayIntent) else startService(overlayIntent)
@@ -447,8 +447,8 @@ class MainActivity : AppCompatActivity() {
             failure = e.message ?: "não foi possível parar o painel"
         }
         try {
-            val stopIntent = Intent(this, NetworkPauseVpnService::class.java)
-                .setAction(NetworkPauseVpnService.ACTION_STOP)
+            val stopIntent = Intent(this, PortFilterVpnService::class.java)
+                .setAction(PortFilterVpnService.ACTION_STOP)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(stopIntent) else startService(stopIntent)
         } catch (e: Exception) {
             if (failure == null) failure = e.message ?: "não foi possível desligar a VPN"
