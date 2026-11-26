@@ -7,8 +7,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.ComponentName
-import android.content.ServiceConnection
 import android.graphics.Color
 import android.graphics.Canvas
 import android.graphics.Paint
@@ -23,7 +21,6 @@ import android.graphics.PixelFormat
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
-import android.os.IBinder
 import android.content.pm.PackageManager
 import android.view.Gravity
 import android.view.MotionEvent
@@ -113,37 +110,8 @@ class FloatingPanelService : Service() {
     private var currentTab = TAB_FAKE_LAG
     private val prefs by lazy { getSharedPreferences(PREFS, MODE_PRIVATE) }
 
-    private var privilegedService: IPrivilegedService? = null
-    private var shizukuBound = false
     private var portCommandBusy = false
     private var portBlocked = false
-    private var pendingPortBlock: Boolean? = null
-
-    private val shizukuArgs by lazy {
-        Shizuku.UserServiceArgs(
-            ComponentName(packageName, PrivilegedService::class.java.name)
-        ).daemon(false)
-            .processNameSuffix("port53017")
-            .debuggable(true)
-            .version(2)
-    }
-
-    private val shizukuConnection = object : ServiceConnection {
-        override fun onServiceConnected(name: ComponentName, binder: IBinder) {
-            privilegedService = IPrivilegedService.Stub.asInterface(binder)
-            shizukuBound = true
-            val pending = pendingPortBlock
-            if (pending != null) {
-                pendingPortBlock = null
-                setPort53017Blocked(pending)
-            }
-        }
-
-        override fun onServiceDisconnected(name: ComponentName) {
-            privilegedService = null
-            shizukuBound = false
-        }
-    }
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -161,7 +129,6 @@ class FloatingPanelService : Service() {
     override fun onCreate() {
         super.onCreate()
         startPanelForeground()
-        bindShizukuController()
         wm = getSystemService(WINDOW_SERVICE) as WindowManager
         val filter = IntentFilter().apply { addAction(ACTION_STATE); addAction(ACTION_HOLOGRAM_STATUS); addAction(ACTION_CLOSE) }
         if (Build.VERSION.SDK_INT >= 33) registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED) else registerReceiver(receiver, filter)
@@ -297,17 +264,6 @@ class FloatingPanelService : Service() {
         if (portBlocked) setPort53017Blocked(false)
     }
 
-    private fun bindShizukuController() {
-        try {
-            if (!Shizuku.pingBinder()) return
-            if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) return
-            Shizuku.bindUserService(shizukuArgs, shizukuConnection)
-            shizukuBound = true
-        } catch (_: Throwable) {
-            shizukuBound = false
-        }
-    }
-
     private fun togglePort53017() {
         if (portCommandBusy) return
         setPort53017Blocked(!portBlocked)
@@ -315,44 +271,23 @@ class FloatingPanelService : Service() {
 
     private fun setPort53017Blocked(block: Boolean) {
         if (portCommandBusy) return
-        val service = privilegedService
-        if (service == null) {
-            val connected = try { Shizuku.pingBinder() } catch (_: Throwable) { false }
-            val authorized = connected && try {
-                Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
-            } catch (_: Throwable) { false }
-            val message = when {
-                !connected -> "Inicie o serviço do Shizuku e tente novamente."
-                !authorized -> "Autorize este aplicativo no Shizuku e tente novamente."
-                else -> null
-            }
-            if (message != null) {
-                android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_LONG).show()
-            } else {
-                pendingPortBlock = block
-                if (!shizukuBound) bindShizukuController()
-                if (!shizukuBound) {
-                    pendingPortBlock = null
-                    android.widget.Toast.makeText(
-                        this,
-                        "Não foi possível conectar ao serviço do Shizuku.",
-                        android.widget.Toast.LENGTH_LONG
-                    ).show()
-                } else {
-                    android.widget.Toast.makeText(
-                        this,
-                        "Conectando ao Shizuku; o comando será aplicado quando o serviço ficar pronto.",
-                        android.widget.Toast.LENGTH_LONG
-                    ).show()
-                }
-            }
+        val connected = try { Shizuku.pingBinder() } catch (_: Throwable) { false }
+        if (!connected) {
+            android.widget.Toast.makeText(this, "Shizuku desconectado. Inicie o serviço e tente novamente.", android.widget.Toast.LENGTH_LONG).show()
+            return
+        }
+        val authorized = try {
+            Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
+        } catch (_: Throwable) { false }
+        if (!authorized) {
+            android.widget.Toast.makeText(this, "Permissão do Shizuku revogada para este app.", android.widget.Toast.LENGTH_LONG).show()
             return
         }
 
         portCommandBusy = true
         Thread {
             val result = try {
-                service.execute(buildPortFirewallCommand(block))
+                executeShizukuCommand(buildPortFirewallCommand(block))
             } catch (e: Throwable) {
                 "ERROR: ${e.message ?: e.javaClass.simpleName}"
             }
@@ -372,6 +307,30 @@ class FloatingPanelService : Service() {
                 }
             }
         }.start()
+    }
+
+    private fun executeShizukuCommand(command: String): String {
+        val process = Shizuku.newProcess(arrayOf("sh", "-c", command), null, null)
+        val stdout = StringBuilder()
+        val stderr = StringBuilder()
+        val stdoutReader = Thread {
+            process.inputStream.bufferedReader().use { stdout.append(it.readText()) }
+        }.apply { start() }
+        val stderrReader = Thread {
+            process.errorStream.bufferedReader().use { stderr.append(it.readText()) }
+        }.apply { start() }
+        try {
+            val exitCode = process.waitFor()
+            stdoutReader.join()
+            stderrReader.join()
+            return buildString {
+                append(stdout)
+                append(stderr)
+                if (exitCode != 0) append("exitCode=").append(exitCode)
+            }
+        } finally {
+            process.destroy()
+        }
     }
 
     private fun buildPortFirewallCommand(block: Boolean): String {
@@ -532,13 +491,9 @@ class FloatingPanelService : Service() {
         try { unregisterReceiver(receiver) } catch (_: Exception) { }
         listOfNotNull(panel, launcher, ghost).forEach { try { wm.removeView(it) } catch (_: Exception) { } }
         panel = null; launcher = null; ghost = null
-        try {
-            if (portBlocked) privilegedService?.execute(buildPortFirewallCommand(false))
-        } catch (_: Throwable) { }
-        try {
-            if (shizukuBound) Shizuku.unbindUserService(shizukuArgs, shizukuConnection, true)
-        } catch (_: Throwable) { }
-        privilegedService = null
+        if (portBlocked) Thread {
+            try { executeShizukuCommand(buildPortFirewallCommand(false)) } catch (_: Throwable) { }
+        }.start()
         if (Build.VERSION.SDK_INT >= 24) stopForeground(STOP_FOREGROUND_REMOVE) else stopForeground(true)
         super.onDestroy()
     }
