@@ -136,6 +136,8 @@ class FloatingPanelService : Service() {
         wm = getSystemService(WINDOW_SERVICE) as WindowManager
         val filter = IntentFilter().apply { addAction(ACTION_STATE); addAction(ACTION_HOLOGRAM_STATUS); addAction(ACTION_CLOSE) }
         if (Build.VERSION.SDK_INT >= 33) registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED) else registerReceiver(receiver, filter)
+        val vpnStateIntent = Intent(this, PortFilterVpnService::class.java).setAction(PortFilterVpnService.ACTION_START)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(vpnStateIntent) else startService(vpnStateIntent)
         createLauncher()
         createPanel()
         showPanel()
