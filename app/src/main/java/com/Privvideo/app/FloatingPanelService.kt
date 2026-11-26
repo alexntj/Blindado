@@ -28,6 +28,7 @@ import android.content.pm.PackageManager
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.LinearLayout
@@ -116,6 +117,7 @@ class FloatingPanelService : Service() {
     private var shizukuBound = false
     private var portCommandBusy = false
     private var portBlocked = false
+    private var pendingPortBlock: Boolean? = null
 
     private val shizukuArgs by lazy {
         Shizuku.UserServiceArgs(
@@ -129,6 +131,12 @@ class FloatingPanelService : Service() {
     private val shizukuConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName, binder: IBinder) {
             privilegedService = IPrivilegedService.Stub.asInterface(binder)
+            shizukuBound = true
+            val pending = pendingPortBlock
+            if (pending != null) {
+                pendingPortBlock = null
+                setPort53017Blocked(pending)
+            }
         }
 
         override fun onServiceDisconnected(name: ComponentName) {
@@ -309,12 +317,35 @@ class FloatingPanelService : Service() {
         if (portCommandBusy) return
         val service = privilegedService
         if (service == null) {
-            bindShizukuController()
-            android.widget.Toast.makeText(
-                this,
-                "Shizuku não está conectado ou sem permissão para este aplicativo.",
-                android.widget.Toast.LENGTH_LONG
-            ).show()
+            val connected = try { Shizuku.pingBinder() } catch (_: Throwable) { false }
+            val authorized = connected && try {
+                Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
+            } catch (_: Throwable) { false }
+            val message = when {
+                !connected -> "Inicie o serviço do Shizuku e tente novamente."
+                !authorized -> "Autorize este aplicativo no Shizuku e tente novamente."
+                else -> null
+            }
+            if (message != null) {
+                android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_LONG).show()
+            } else {
+                pendingPortBlock = block
+                if (!shizukuBound) bindShizukuController()
+                if (!shizukuBound) {
+                    pendingPortBlock = null
+                    android.widget.Toast.makeText(
+                        this,
+                        "Não foi possível conectar ao serviço do Shizuku.",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                } else {
+                    android.widget.Toast.makeText(
+                        this,
+                        "Conectando ao Shizuku; o comando será aplicado quando o serviço ficar pronto.",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
             return
         }
 
@@ -355,18 +386,18 @@ class FloatingPanelService : Service() {
         val commands = if (block) {
             rules.map { check ->
                 val add = check.replace(" -C ", " -I ")
-                "$check 2>/dev/null || $add"
+                "if $check >/dev/null 2>&1; then :; elif $add; then :; else echo 'ERRO: falha ao aplicar regra da porta 53017' >&2; failures=\$((failures+1)); fi"
             }
         } else {
             rules.map { check ->
                 val remove = check.replace(" -C ", " -D ")
-                "$remove 2>/dev/null || true"
+                "$remove >/dev/null 2>&1 || { echo 'ERRO: falha ao remover regra da porta 53017' >&2; failures=\$((failures+1)); }"
             }
         }
         return buildString {
-            append("set -e; ")
+            append("failures=0; ")
             commands.forEach { append(it).append("; ") }
-            append("echo GHOST_PORT_53017_OK")
+            append("if [ \$failures -eq 0 ]; then echo GHOST_PORT_53017_OK; else echo 'ERRO: bloqueio incompleto; verifique root/NET_ADMIN e iptables/ip6tables' >&2; exit 1; fi")
         }
     }
 
@@ -391,7 +422,7 @@ class FloatingPanelService : Service() {
                 box.addView(fakeLagSwitch, LinearLayout.LayoutParams(-1, dp(44)).apply { topMargin = dp(12) })
                 status = label(if (portBlocked) "PORTA 53017 BLOQUEADA" else "PORTA 53017 LIBERADA", 10f, 0xFF65E69A.toInt(), true).apply { gravity = Gravity.CENTER; setPadding(0, dp(10), 0, 0) }
                 box.addView(status)
-                box.addView(label( "Ative o Fake Lag para exibir o botão fantasma. Ele bloqueia/libera somente TCP e UDP na porta 53017 via Shizuku; o restante do tráfego permanece fora dessas regras.", 9f, 0xFF9CA3AF.toInt(), false).apply { gravity = Gravity.CENTER; setPadding(0, dp(8), 0, 0) })
+                box.addView(label( "Ative o Fake Lag para exibir o botão fantasma. O bloqueio usa iptables via Shizuku e requer root/NET_ADMIN; afeta somente TCP e UDP na porta 53017.", 9f, 0xFF9CA3AF.toInt(), false).apply { gravity = Gravity.CENTER; setPadding(0, dp(8), 0, 0) })
             }
             TAB_TEXTURES -> {
                 box.addView(label("HOLOGRAMA · FREE FIRE MAX", 11f, Color.WHITE, true).apply { gravity = Gravity.CENTER })
@@ -437,6 +468,7 @@ class FloatingPanelService : Service() {
 
     private fun attachDrag(view: View, lp: WindowManager.LayoutParams, key: String, onlyHandle: Boolean = false) {
         var sx = 0f; var sy = 0f; var ox = 0; var oy = 0; var moved = false
+        val touchSlop = ViewConfiguration.get(this).scaledTouchSlop
         val touch = View.OnTouchListener { v, e ->
             when (e.action) {
                 MotionEvent.ACTION_DOWN -> {
@@ -446,7 +478,7 @@ class FloatingPanelService : Service() {
                 }
                 MotionEvent.ACTION_MOVE -> {
                     val dx = (e.rawX - sx).toInt(); val dy = (e.rawY - sy).toInt()
-                    if (abs(dx) > 3 || abs(dy) > 3) moved = true
+                    if (abs(dx) > touchSlop || abs(dy) > touchSlop) moved = true
                     lp.x = (ox + dx).coerceAtLeast(0); lp.y = (oy + dy).coerceAtLeast(0)
                     try { wm.updateViewLayout(view, lp) } catch (_: Exception) { }
                     true
