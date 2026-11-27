@@ -46,6 +46,8 @@ class PortFilterVpnService : VpnService() {
         private const val BLOCK_PROXY = "Block"
         private const val EXIT_PROXY = "Exit"
         private const val PORT_TO_BLOCK = 53017
+        private const val PANEL_PREFS = "ghost_overlay_positions"
+        private const val PREF_FAKE_LAG_ENABLED = "fake_lag_enabled"
         private const val TAG = "GhostPortVPN"
         private val TCP_UDP_PROTOCOLS = setOf(6, 17)
     }
@@ -141,9 +143,11 @@ class PortFilterVpnService : VpnService() {
             ACTION_SET_PORT_BLOCKED -> {
                 val desired = intent?.getBooleanExtra(EXTRA_PORT_BLOCKED_REQUEST, false) ?: false
                 if (!ensureTunnel()) return START_NOT_STICKY
-                port53017Blocked = desired
+                port53017Blocked = desired && isFakeLagEnabled()
             }
-            ACTION_START, null -> Unit
+            ACTION_START, null -> {
+                if (!isFakeLagEnabled()) port53017Blocked = false
+            }
             else -> Log.w(TAG, "Ação desconhecida: ${intent?.action}")
         }
 
@@ -165,6 +169,8 @@ class PortFilterVpnService : VpnService() {
                 .setMtu(MTU)
                 .addAddress("10.111.222.1", 24)
                 .addAddress("fd66:f83a:c650::1", 120)
+                .addDnsServer("10.111.222.3")
+                .addDnsServer("fd66:f83a:c650::3")
                 .addRoute("0.0.0.0", 0)
                 .addRoute("::", 0)
 
@@ -197,6 +203,9 @@ class PortFilterVpnService : VpnService() {
         if (address.isNullOrBlank()) return false
         return address.substringAfterLast(':').toIntOrNull() == port
     }
+
+    private fun isFakeLagEnabled(): Boolean = getSharedPreferences(PANEL_PREFS, MODE_PRIVATE)
+        .getBoolean(PREF_FAKE_LAG_ENABLED, false)
 
     private fun mark(proxy: String, cid: String, uid: Int): Mark = Mark().apply {
         setPIDCSV(proxy)

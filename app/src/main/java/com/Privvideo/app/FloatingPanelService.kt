@@ -110,6 +110,7 @@ class FloatingPanelService : Service() {
     private val prefs by lazy { getSharedPreferences(PREFS, MODE_PRIVATE) }
 
     private var portCommandBusy = false
+    private var pendingPortBlock: Boolean? = null
     private var portBlocked = false
 
     private val receiver = object : BroadcastReceiver() {
@@ -118,11 +119,16 @@ class FloatingPanelService : Service() {
                 ACTION_STATE -> {
                     paused = intent.getBooleanExtra(PortFilterVpnService.EXTRA_PAUSED, false)
                     portBlocked = intent.getBooleanExtra(PortFilterVpnService.EXTRA_PORT_BLOCKED, portBlocked)
+                    val retryPortState = pendingPortBlock
+                    pendingPortBlock = null
                     portCommandBusy = false
                     intent.getStringExtra(PortFilterVpnService.EXTRA_ERROR)?.let { error ->
                         android.widget.Toast.makeText(this@FloatingPanelService, error, android.widget.Toast.LENGTH_LONG).show()
                     }
                     renderNetworkState()
+                    if (retryPortState != null && retryPortState != portBlocked) {
+                        setPort53017Blocked(retryPortState)
+                    }
                 }
                 ACTION_HOLOGRAM_STATUS -> hologramStatus?.text = intent.getStringExtra(EXTRA_HOLOGRAM_STATUS) ?: "Aguardando ação"
                 ACTION_CLOSE -> stopSelf()
@@ -134,6 +140,7 @@ class FloatingPanelService : Service() {
         super.onCreate()
         startPanelForeground()
         wm = getSystemService(WINDOW_SERVICE) as WindowManager
+        fakeLagEnabled = prefs.getBoolean("fake_lag_enabled", false)
         val filter = IntentFilter().apply { addAction(ACTION_STATE); addAction(ACTION_HOLOGRAM_STATUS); addAction(ACTION_CLOSE) }
         if (Build.VERSION.SDK_INT >= 33) registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED) else registerReceiver(receiver, filter)
         val vpnStateIntent = Intent(this, PortFilterVpnService::class.java).setAction(PortFilterVpnService.ACTION_START)
@@ -267,7 +274,7 @@ class FloatingPanelService : Service() {
     private fun hideGhost() {
         ghost?.let { try { wm.removeView(it) } catch (_: Exception) { } }
         ghost = null; ghostParams = null
-        if (portBlocked) setPort53017Blocked(false)
+        setPort53017Blocked(false)
     }
 
     private fun togglePort53017() {
@@ -275,7 +282,10 @@ class FloatingPanelService : Service() {
     }
 
     private fun setPort53017Blocked(block: Boolean) {
-        if (portCommandBusy) return
+        if (portCommandBusy) {
+            pendingPortBlock = block
+            return
+        }
         portCommandBusy = true
         val intent = Intent(this, PortFilterVpnService::class.java)
             .setAction(PortFilterVpnService.ACTION_SET_PORT_BLOCKED)
@@ -301,6 +311,7 @@ class FloatingPanelService : Service() {
                 box.addView(label("FAKE LAG", 12f, Color.WHITE, true).apply { gravity = Gravity.CENTER })
                 fakeLagSwitch = actionButton(if (fakeLagEnabled) "FAKE LAG: ATIVADO" else "FAKE LAG: DESATIVADO", false) {
                     fakeLagEnabled = !fakeLagEnabled
+                    prefs.edit().putBoolean("fake_lag_enabled", fakeLagEnabled).apply()
                     renderFakeLagSwitch()
                     if (fakeLagEnabled) showGhost() else hideGhost()
                 }
